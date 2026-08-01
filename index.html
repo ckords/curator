@@ -109,16 +109,22 @@
             background-color: #128f76;
         }
 
-        /* Search Bar Controls */
+        /* Search & Filter Controls */
         .table-controls {
             display: flex;
-            justify-content: space-between;
+            gap: 15px;
             align-items: center;
             margin-bottom: 10px;
+            flex-wrap: wrap;
         }
         .search-input {
-            width: 100%;
-            max-width: 300px;
+            flex: 1;
+            min-width: 200px;
+            padding: 8px 12px;
+            font-size: 14px;
+        }
+        .filter-select {
+            width: 180px;
             padding: 8px 12px;
             font-size: 14px;
         }
@@ -259,9 +265,14 @@
         <button onclick="addListing()">Add Item</button>
     </div>
 
-    <!-- Table Search Controls -->
+    <!-- Table Search & Filter Controls -->
     <div class="table-controls">
         <input type="text" id="searchInput" class="search-input" placeholder="🔍 Search inventory..." oninput="filterTable()">
+        <select id="statusFilter" class="filter-select" onchange="filterTable()">
+            <option value="All">All Items</option>
+            <option value="Active">Active Only</option>
+            <option value="Sold">Sold Only</option>
+        </select>
     </div>
 
     <!-- Data Table -->
@@ -317,7 +328,6 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
 <script>
-    // Global variable to hold loaded inventory items for fast client-side filtering
     let allInventoryData = [];
 
     // 1. Initialize Supabase Connection
@@ -344,7 +354,7 @@
         }
 
         allInventoryData = data || [];
-        renderTable(allInventoryData);
+        filterTable();
         updateSummaryCards(allInventoryData);
     }
 
@@ -369,21 +379,23 @@
         document.getElementById('cardSoldCount').innerText = soldCount;
     }
 
-    // 6. Filter Table Data Dynamic Search
+    // 6. Filter Table Data (Combined Search & Status Filter)
     function filterTable() {
         const query = document.getElementById('searchInput').value.toLowerCase().trim();
-        
-        if (!query) {
-            renderTable(allInventoryData);
-            return;
-        }
+        const statusChoice = document.getElementById('statusFilter').value;
 
         const filtered = allInventoryData.filter(item => {
+            const itemStatus = item.status || 'Active';
+            
+            // Status dropdown match
+            const statusMatch = (statusChoice === 'All') || (itemStatus === statusChoice);
+
+            // Text search match
             const nameMatch = item.item_name && item.item_name.toLowerCase().includes(query);
             const platformMatch = item.platform && item.platform.toLowerCase().includes(query);
-            const statusMatch = item.status && item.status.toLowerCase().includes(query);
-            
-            return nameMatch || platformMatch || statusMatch;
+            const textMatch = !query || nameMatch || platformMatch;
+
+            return statusMatch && textMatch;
         });
 
         renderTable(filtered);
