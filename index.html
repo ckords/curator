@@ -17,15 +17,8 @@
             --warning: #e74c3c;
         }
         body {
-            /* Font Option 1: Clean & Professional (Active) */
+            /* Clean & Professional Font */
             font-family: 'Inter', sans-serif; 
-            
-            /* Font Option 2: Geometric & Modern */
-            /* font-family: 'Montserrat', sans-serif; */
-            
-            /* Font Option 3: Mercantile & Elegant */
-            /* font-family: 'Lora', serif; */
-            
             background-color: var(--background);
             color: var(--text);
             margin: 0;
@@ -46,7 +39,7 @@
             color: var(--primary);
             border-bottom: 2px solid var(--secondary);
             padding-bottom: 10px;
-            text-align: center; /* Centered alignment */
+            text-align: center;
         }
         .form-grid {
             display: grid;
@@ -58,7 +51,7 @@
             padding: 10px;
             border: 1px solid #ccc;
             border-radius: 4px;
-            font-family: inherit; /* Keeps inputs matching your chosen font */
+            font-family: inherit;
             font-size: 14px;
         }
         button {
@@ -137,22 +130,20 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
 <script>
-    // Initialize Supabase Connection
+    // 1. Initialize Supabase Connection
     const supabaseUrl = 'https://qlygxviynzwpkjmxlvmo.supabase.co';
-    
-    // IMPORTANT: Paste your actual key here before saving!
     const supabaseKey = 'sb_publishable_bidLIrWAsKQZNjzURL_Iiw_UTLW_FrP'; 
-    const supabase = supabase.createClient(supabaseUrl, supabaseKey);
+    const supabaseClient = supabase.createClient(supabaseUrl, supabaseKey);
 
-    // Set default date in the form
+    // 2. Set default date in the form
     document.getElementById('dateListed').valueAsDate = new Date();
 
-    // Load saved listings when page opens
+    // 3. Load saved listings when page opens
     document.addEventListener('DOMContentLoaded', fetchListings);
 
-    // Fetch listings from Supabase
+    // 4. Fetch listings from Supabase
     async function fetchListings() {
-        const { data, error } = await supabase
+        const { data, error } = await supabaseClient
             .from('curator_listings')
             .select('*')
             .order('date_listed', { ascending: false });
@@ -164,7 +155,7 @@
         renderTable(data);
     }
 
-    // Save new listing to Supabase
+    // 5. Save new listing to Supabase
     async function addListing() {
         const name = document.getElementById('itemName').value;
         const platform = document.getElementById('platform').value;
@@ -191,7 +182,7 @@
             calculated_baseline: price 
         };
 
-        const { data, error } = await supabase
+        const { data, error } = await supabaseClient
             .from('curator_listings')
             .insert([payload]);
 
@@ -208,7 +199,7 @@
         fetchListings(); 
     }
 
-    // Render data into table
+    // 6. Render data into table
     function renderTable(inventoryData) {
         const tbody = document.getElementById('inventoryBody');
         tbody.innerHTML = '';
