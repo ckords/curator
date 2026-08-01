@@ -15,9 +15,9 @@
             --background: #f4f7f6;
             --text: #333;
             --warning: #e74c3c;
+            --sold: #7f8c8d;
         }
         body {
-            /* Clean & Professional Font */
             font-family: 'Inter', sans-serif; 
             background-color: var(--background);
             color: var(--text);
@@ -29,7 +29,7 @@
         }
         .container {
             width: 100%;
-            max-width: 1000px;
+            max-width: 1100px;
             background: #fff;
             padding: 30px;
             border-radius: 8px;
@@ -83,10 +83,31 @@
             color: var(--warning);
             font-weight: bold;
         }
-        .comps-btn {
+        .status-sold {
+            background-color: #f8f9fa;
+            color: var(--sold);
+            text-decoration: line-through;
+        }
+        .action-btn {
+            font-size: 11px;
+            padding: 5px 8px;
+            margin-right: 4px;
+            border-radius: 3px;
+        }
+        .btn-sold {
+            background-color: #27ae60;
+        }
+        .btn-sold:hover {
+            background-color: #1e8449;
+        }
+        .btn-delete {
+            background-color: #e74c3c;
+        }
+        .btn-delete:hover {
+            background-color: #c0392b;
+        }
+        .btn-comps {
             background-color: var(--primary);
-            font-size: 12px;
-            padding: 6px 10px;
         }
     </style>
 </head>
@@ -110,6 +131,7 @@
     <table>
         <thead>
             <tr>
+                <th>Status</th>
                 <th>Item Name</th>
                 <th>Platform</th>
                 <th>Cost</th>
@@ -117,7 +139,7 @@
                 <th>Potential Margin</th>
                 <th>Date Listed</th>
                 <th>Days Active</th>
-                <th>Research</th>
+                <th>Actions</th>
             </tr>
         </thead>
         <tbody id="inventoryBody">
@@ -146,7 +168,7 @@
         const { data, error } = await supabaseClient
             .from('curator_listings')
             .select('*')
-            .order('date_listed', { ascending: false });
+            .order('id', { ascending: false });
 
         if (error) {
             console.error('Error fetching inventory:', error);
@@ -179,7 +201,8 @@
             date_listed: dateStr,
             target_margin: margin,
             fee_percentage: platformFee,
-            calculated_baseline: price 
+            calculated_baseline: price,
+            status: 'Active'
         };
 
         const { data, error } = await supabaseClient
@@ -199,7 +222,43 @@
         fetchListings(); 
     }
 
-    // 6. Render data into table
+    // 6. Toggle Status (Mark as Sold / Active)
+    async function toggleSold(id, currentStatus) {
+        const newStatus = currentStatus === 'Sold' ? 'Active' : 'Sold';
+        
+        const { error } = await supabaseClient
+            .from('curator_listings')
+            .update({ status: newStatus })
+            .eq('id', id);
+
+        if (error) {
+            console.error('Error updating status:', error);
+            alert('Failed to update status.');
+            return;
+        }
+
+        fetchListings();
+    }
+
+    // 7. Delete Item from Database
+    async function deleteItem(id, name) {
+        if (!confirm(`Are you sure you want to delete "${name}"?`)) return;
+
+        const { error } = await supabaseClient
+            .from('curator_listings')
+            .delete()
+            .eq('id', id);
+
+        if (error) {
+            console.error('Error deleting item:', error);
+            alert('Failed to delete item.');
+            return;
+        }
+
+        fetchListings();
+    }
+
+    // 8. Render data into table
     function renderTable(inventoryData) {
         const tbody = document.getElementById('inventoryBody');
         tbody.innerHTML = '';
@@ -209,29 +268,36 @@
         inventoryData.forEach((item) => {
             const row = document.createElement('tr');
             
+            const isSold = item.status === 'Sold';
+            if (isSold) {
+                row.classList.add('status-sold');
+            }
+
             const listDate = new Date(item.date_listed);
             const today = new Date();
             const diffTime = Math.abs(today - listDate);
             const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) - 1; 
             
-            const daysClass = diffDays > 30 ? 'stale-listing' : '';
+            const daysClass = (!isSold && diffDays > 30) ? 'stale-listing' : '';
 
             row.innerHTML = `
+                <td><strong>${item.status || 'Active'}</strong></td>
                 <td>${item.item_name}</td>
                 <td>${item.platform}</td>
                 <td>$${item.item_cost.toFixed(2)}</td>
                 <td>$${item.list_price.toFixed(2)}</td>
                 <td>$${item.target_margin.toFixed(2)}</td>
                 <td>${item.date_listed}</td>
-                <td class="${daysClass}">${diffDays} Days</td>
-                <td><button class="comps-btn" onclick="searchComps('${item.item_name}')">Run Comps</button></td>
+                <td class="${daysClass}">${isSold ? '-' : diffDays + ' Days'}</td>
+                <td>
+                    <button class="action-btn btn-sold" onclick="toggleSold(${item.id}, '${item.status || 'Active'}')">
+                        ${isSold ? 'Reactivate' : 'Mark Sold'}
+                    </button>
+                    <button class="action-btn btn-delete" onclick="deleteItem(${item.id}, '${item.item_name}')">Delete</button>
+                </td>
             `;
             tbody.appendChild(row);
         });
-    }
-
-    function searchComps(itemName) {
-        alert("This will eventually ping the eBay API to find average sold prices for: " + itemName);
     }
 </script>
 
