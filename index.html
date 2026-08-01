@@ -41,7 +41,49 @@
             border-bottom: 2px solid var(--secondary);
             padding-bottom: 10px;
             text-align: center;
+            margin-top: 0;
         }
+
+        /* Summary Cards Grid */
+        .summary-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 25px;
+        }
+        .card {
+            background: #f8f9fa;
+            border-left: 5px solid var(--primary);
+            padding: 15px 20px;
+            border-radius: 6px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+        .card.card-payout {
+            border-left-color: var(--payout);
+        }
+        .card.card-profit {
+            border-left-color: var(--profit);
+        }
+        .card-label {
+            font-size: 12px;
+            font-weight: bold;
+            color: #7f8c8d;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .card-value {
+            font-size: 24px;
+            font-weight: bold;
+            color: var(--primary);
+            margin-top: 5px;
+        }
+        .card-payout .card-value {
+            color: var(--payout);
+        }
+        .card-profit .card-value {
+            color: var(--profit);
+        }
+
         .form-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
@@ -173,6 +215,23 @@
 <div class="container">
     <h1>Curator</h1>
     
+    <!-- Summary Analytics Cards -->
+    <div class="summary-grid">
+        <div class="card card-payout">
+            <div class="card-label">Total Revenue (Payouts)</div>
+            <div class="card-value" id="cardRevenue">$0.00</div>
+        </div>
+        <div class="card card-profit">
+            <div class="card-label">Total Net Profit</div>
+            <div class="card-value" id="cardProfit">$0.00</div>
+        </div>
+        <div class="card">
+            <div class="card-label">Items Sold</div>
+            <div class="card-value" id="cardSoldCount">0</div>
+        </div>
+    </div>
+
+    <!-- Input Form -->
     <div class="form-grid">
         <input type="text" id="itemName" placeholder="Item Name" required>
         <select id="platform">
@@ -185,6 +244,7 @@
         <button onclick="addListing()">Add Item</button>
     </div>
 
+    <!-- Data Table -->
     <table>
         <thead>
             <tr>
@@ -260,9 +320,31 @@
             return;
         }
         renderTable(data);
+        updateSummaryCards(data);
     }
 
-    // 5. Save new listing to Supabase
+    // 5. Update Top Summary Cards
+    function updateSummaryCards(data) {
+        if (!data) return;
+
+        let totalRevenue = 0;
+        let totalProfit = 0;
+        let soldCount = 0;
+
+        data.forEach(item => {
+            if (item.status === 'Sold') {
+                totalRevenue += item.total_payout || 0;
+                totalProfit += item.net_profit || 0;
+                soldCount++;
+            }
+        });
+
+        document.getElementById('cardRevenue').innerText = `$${totalRevenue.toFixed(2)}`;
+        document.getElementById('cardProfit').innerText = `$${totalProfit.toFixed(2)}`;
+        document.getElementById('cardSoldCount').innerText = soldCount;
+    }
+
+    // 6. Save new listing to Supabase
     async function addListing() {
         const name = document.getElementById('itemName').value;
         const platform = document.getElementById('platform').value;
@@ -305,7 +387,7 @@
         fetchListings(); 
     }
 
-    // 6. Handle Sold Action
+    // 7. Handle Sold Action
     async function toggleSold(item) {
         if (item.status === 'Sold') {
             const { error } = await supabaseClient
@@ -344,7 +426,6 @@
         const salePrice = parseFloat(document.getElementById('modalSalePrice').value) || 0;
         const totalPayout = parseFloat(document.getElementById('modalTotalPayout').value) || 0;
 
-        // Net Profit = Exact Earnings Received - Item Cost
         const netProfit = totalPayout - cost;
 
         const { error } = await supabaseClient
@@ -367,7 +448,7 @@
         fetchListings();
     }
 
-    // 7. Delete Item
+    // 8. Delete Item
     async function deleteItem(id, name) {
         if (!confirm(`Are you sure you want to delete "${name}"?`)) return;
 
@@ -385,7 +466,7 @@
         fetchListings();
     }
 
-    // 8. Render Table
+    // 9. Render Table
     function renderTable(inventoryData) {
         const tbody = document.getElementById('inventoryBody');
         tbody.innerHTML = '';
