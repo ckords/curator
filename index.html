@@ -178,6 +178,15 @@
             background-color: #c0392b;
         }
 
+        /* Inline Editable Cell Styles */
+        .editable {
+            cursor: pointer;
+            border-bottom: 1px dashed #aaa;
+        }
+        .editable:hover {
+            background-color: #f0f3f4;
+        }
+
         /* Modal Styles */
         .modal-overlay {
             display: none;
@@ -379,18 +388,15 @@
         document.getElementById('cardSoldCount').innerText = soldCount;
     }
 
-    // 6. Filter Table Data (Combined Search & Status Filter)
+    // 6. Filter Table Data
     function filterTable() {
         const query = document.getElementById('searchInput').value.toLowerCase().trim();
         const statusChoice = document.getElementById('statusFilter').value;
 
         const filtered = allInventoryData.filter(item => {
             const itemStatus = item.status || 'Active';
-            
-            // Status dropdown match
             const statusMatch = (statusChoice === 'All') || (itemStatus === statusChoice);
 
-            // Text search match
             const nameMatch = item.item_name && item.item_name.toLowerCase().includes(query);
             const platformMatch = item.platform && item.platform.toLowerCase().includes(query);
             const textMatch = !query || nameMatch || platformMatch;
@@ -401,7 +407,52 @@
         renderTable(filtered);
     }
 
-    // 7. Save new listing to Supabase
+    // 7. Inline Field Editing Handler
+    async function saveInlineEdit(id, field, value) {
+        let updatedVal = value.trim();
+
+        if (field === 'item_cost' || field === 'list_price') {
+            updatedVal = parseFloat(updatedVal.replace('$', ''));
+            if (isNaN(updatedVal)) {
+                alert('Please enter a valid numeric amount.');
+                fetchListings();
+                return;
+            }
+        }
+
+        if (!updatedVal) {
+            alert('Value cannot be empty.');
+            fetchListings();
+            return;
+        }
+
+        const updatePayload = { [field]: updatedVal };
+
+        // Recalculate target margin if cost or list price changed
+        if (field === 'item_cost' || field === 'list_price') {
+            const item = allInventoryData.find(i => i.id === id);
+            if (item) {
+                const newCost = field === 'item_cost' ? updatedVal : item.item_cost;
+                const newPrice = field === 'list_price' ? updatedVal : item.list_price;
+                updatePayload.target_margin = newPrice - newCost;
+            }
+        }
+
+        const { error } = await supabaseClient
+            .from('curator_listings')
+            .update(updatePayload)
+            .eq('id', id);
+
+        if (error) {
+            console.error('Error saving update:', error);
+            alert('Failed to update field.');
+            return;
+        }
+
+        fetchListings();
+    }
+
+    // 8. Save new listing to Supabase
     async function addListing() {
         const name = document.getElementById('itemName').value;
         const platform = document.getElementById('platform').value;
@@ -444,7 +495,7 @@
         fetchListings(); 
     }
 
-    // 8. Handle Sold Action
+    // 9. Handle Sold Action
     async function toggleSold(item) {
         if (item.status === 'Sold') {
             const { error } = await supabaseClient
@@ -505,7 +556,7 @@
         fetchListings();
     }
 
-    // 9. Delete Item
+    // 10. Delete Item
     async function deleteItem(id, name) {
         if (!confirm(`Are you sure you want to delete "${name}"?`)) return;
 
@@ -523,7 +574,7 @@
         fetchListings();
     }
 
-    // 10. Render Table
+    // 11. Render Table
     function renderTable(inventoryData) {
         const tbody = document.getElementById('inventoryBody');
         tbody.innerHTML = '';
@@ -549,10 +600,10 @@
 
             row.innerHTML = `
                 <td><strong>${item.status || 'Active'}</strong></td>
-                <td>${item.item_name}</td>
+                <td ${!isSold ? `class="editable" contenteditable="true" onblur="saveInlineEdit(${item.id}, 'item_name', this.innerText)"` : ''}>${item.item_name}</td>
                 <td>${item.platform}</td>
-                <td>$${item.item_cost.toFixed(2)}</td>
-                <td>$${item.list_price.toFixed(2)}</td>
+                <td ${!isSold ? `class="editable" contenteditable="true" onblur="saveInlineEdit(${item.id}, 'item_cost', this.innerText)"` : ''}>$${item.item_cost.toFixed(2)}</td>
+                <td ${!isSold ? `class="editable" contenteditable="true" onblur="saveInlineEdit(${item.id}, 'list_price', this.innerText)"` : ''}>$${item.list_price.toFixed(2)}</td>
                 <td>${isSold ? '$' + (item.actual_sale_price || 0).toFixed(2) : '-'}</td>
                 <td class="${isSold ? 'payout-text' : ''}">${isSold ? '$' + (item.total_payout || 0).toFixed(2) : '-'}</td>
                 <td class="${isSold ? 'profit-text' : ''}">${isSold ? '$' + (item.net_profit || 0).toFixed(2) : '-'}</td>
