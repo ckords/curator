@@ -17,6 +17,7 @@
             --sold: #7f8c8d;
             --profit: #27ae60;
             --payout: #2980b9;
+            --margin: #8e44ad;
         }
         body {
             font-family: 'Inter', sans-serif; 
@@ -48,8 +49,8 @@
         /* Summary Cards Grid */
         .summary-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 20px;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 15px;
             margin-bottom: 25px;
         }
         .card {
@@ -65,15 +66,18 @@
         .card.card-profit {
             border-left-color: var(--profit);
         }
+        .card.card-margin {
+            border-left-color: var(--margin);
+        }
         .card-label {
-            font-size: 12px;
+            font-size: 11px;
             font-weight: bold;
             color: #7f8c8d;
             text-transform: uppercase;
             letter-spacing: 0.5px;
         }
         .card-value {
-            font-size: 24px;
+            font-size: 22px;
             font-weight: bold;
             color: var(--primary);
             margin-top: 5px;
@@ -83,6 +87,9 @@
         }
         .card-profit .card-value {
             color: var(--profit);
+        }
+        .card-margin .card-value {
+            color: var(--margin);
         }
 
         .form-grid {
@@ -363,6 +370,10 @@
             <div class="card-label">Total Net Profit</div>
             <div class="card-value" id="cardProfit">$0.00</div>
         </div>
+        <div class="card card-margin">
+            <div class="card-label">Profit Margin</div>
+            <div class="card-value" id="cardMargin">0.0%</div>
+        </div>
         <div class="card">
             <div class="card-label">Items Sold</div>
             <div class="card-value" id="cardSoldCount">0</div>
@@ -520,7 +531,7 @@
 <script>
     let allInventoryData = [];
     let currentSortColumn = null;
-    let currentSortDirection = 'asc'; // 'asc' or 'desc'
+    let currentSortDirection = 'asc';
 
     // 1. Initialize Supabase Connection
     const supabaseUrl = 'https://qlygxviynzwpkjmxlvmo.supabase.co';
@@ -549,7 +560,7 @@
         filterTable();
     }
 
-    // 5. Update Top Summary Cards
+    // 5. Update Top Summary Cards (Revenue, Profit, Profit Margin %, Items Sold)
     function updateSummaryCards(data) {
         if (!data) return;
 
@@ -565,8 +576,11 @@
             }
         });
 
+        const profitMargin = totalRevenue > 0 ? (totalProfit / totalRevenue) * 100 : 0;
+
         document.getElementById('cardRevenue').innerText = `$${totalRevenue.toFixed(2)}`;
         document.getElementById('cardProfit').innerText = `$${totalProfit.toFixed(2)}`;
+        document.getElementById('cardMargin').innerText = `${profitMargin.toFixed(1)}%`;
         document.getElementById('cardSoldCount').innerText = soldCount;
     }
 
@@ -579,10 +593,8 @@
             currentSortDirection = 'asc';
         }
 
-        // Reset all sort icon indicators
         document.querySelectorAll('.sort-icon').forEach(icon => icon.innerText = '↕');
 
-        // Update active column icon
         const activeIcon = document.getElementById(`sort-${columnKey}`);
         if (activeIcon) {
             activeIcon.innerText = currentSortDirection === 'asc' ? '↑' : '↓';
@@ -616,7 +628,6 @@
             return statusMatch && textMatch && dateMatch;
         });
 
-        // Apply Sorting if active
         if (currentSortColumn) {
             filtered.sort((a, b) => {
                 let valA, valB;
