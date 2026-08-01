@@ -5,8 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Curator</title>
     
-    <!-- Import Google Fonts -->
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&family=Lora:ital,wght@0,400;0,600&family=Montserrat:wght@400;600&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
     
     <style>
         :root {
@@ -195,8 +194,7 @@
                 <th>Cost</th>
                 <th>List Price</th>
                 <th>Actual Sale</th>
-                <th>Ship Paid / Cost</th>
-                <th>Total Payout</th>
+                <th>Order Earnings</th>
                 <th>Net Profit</th>
                 <th>Date Listed</th>
                 <th>Days Active</th>
@@ -216,21 +214,16 @@
         
         <input type="hidden" id="modalItemId">
         <input type="hidden" id="modalItemCost">
-        <input type="hidden" id="modalPlatform">
 
         <div class="modal-group">
-            <label for="modalSalePrice">Final Sale Price ($)</label>
-            <input type="number" id="modalSalePrice" step="0.01" placeholder="0.00">
+            <label for="modalSalePrice">Actual Sale Price ($)</label>
+            <input type="number" id="modalSalePrice" step="0.01" placeholder="115.00">
         </div>
 
         <div class="modal-group">
-            <label for="modalShipCharged">Shipping Charged to Buyer ($)</label>
-            <input type="number" id="modalShipCharged" step="0.01" placeholder="0.00">
-        </div>
-
-        <div class="modal-group">
-            <label for="modalShipCost">Actual Shipping Cost Paid by You ($)</label>
-            <input type="number" id="modalShipCost" step="0.01" placeholder="0.00">
+            <label for="modalTotalPayout">Order Earnings / Bank Deposit ($)</label>
+            <input type="number" id="modalTotalPayout" step="0.01" placeholder="96.78">
+            <span style="font-size: 11px; color: #7f8c8d;">Enter the exact "Order earnings" from your platform summary.</span>
         </div>
 
         <div class="modal-actions">
@@ -283,7 +276,6 @@
         }
 
         const margin = price - cost;
-        const platformFee = platform === 'eBay' ? 13.25 : 0.00;
 
         const payload = {
             item_name: name,
@@ -292,7 +284,6 @@
             list_price: price,
             date_listed: dateStr,
             target_margin: margin,
-            fee_percentage: platformFee,
             calculated_baseline: price,
             status: 'Active'
         };
@@ -314,17 +305,14 @@
         fetchListings(); 
     }
 
-    // 6. Handle Sold Action (Toggle / Open Modal)
+    // 6. Handle Sold Action
     async function toggleSold(item) {
         if (item.status === 'Sold') {
-            // Reactivate item directly
             const { error } = await supabaseClient
                 .from('curator_listings')
                 .update({ 
                     status: 'Active',
                     actual_sale_price: 0,
-                    shipping_charged: 0,
-                    shipping_cost: 0,
                     total_payout: 0,
                     net_profit: 0
                 })
@@ -335,15 +323,12 @@
             return;
         }
 
-        // Open Modal for active items
         document.getElementById('modalItemId').value = item.id;
         document.getElementById('modalItemCost').value = item.item_cost;
-        document.getElementById('modalPlatform').value = item.platform;
         document.getElementById('modalTitle').innerText = `Complete Sale: ${item.item_name}`;
         
         document.getElementById('modalSalePrice').value = item.list_price;
-        document.getElementById('modalShipCharged').value = "0.00";
-        document.getElementById('modalShipCost').value = "0.00";
+        document.getElementById('modalTotalPayout').value = '';
 
         document.getElementById('soldModal').style.display = 'flex';
     }
@@ -355,30 +340,18 @@
     async function confirmSold() {
         const id = document.getElementById('modalItemId').value;
         const cost = parseFloat(document.getElementById('modalItemCost').value) || 0;
-        const platform = document.getElementById('modalPlatform').value;
 
         const salePrice = parseFloat(document.getElementById('modalSalePrice').value) || 0;
-        const shipCharged = parseFloat(document.getElementById('modalShipCharged').value) || 0;
-        const shipCost = parseFloat(document.getElementById('modalShipCost').value) || 0;
+        const totalPayout = parseFloat(document.getElementById('modalTotalPayout').value) || 0;
 
-        // Calculate Fee (eBay 13.25% or Facebook 0%)
-        const feeRate = platform === 'eBay' ? 0.1325 : 0.00;
-        const grossTotal = salePrice + shipCharged;
-        const estimatedFee = grossTotal * feeRate;
-
-        // Total Received (Payout after platform fees)
-        const totalPayout = grossTotal - estimatedFee;
-
-        // Net Profit (Total Payout - Item Cost - Actual Shipping Cost)
-        const netProfit = totalPayout - cost - shipCost;
+        // Net Profit = Exact Earnings Received - Item Cost
+        const netProfit = totalPayout - cost;
 
         const { error } = await supabaseClient
             .from('curator_listings')
             .update({
                 status: 'Sold',
                 actual_sale_price: salePrice,
-                shipping_charged: shipCharged,
-                shipping_cost: shipCost,
                 total_payout: totalPayout,
                 net_profit: netProfit
             })
@@ -440,7 +413,6 @@
                 <td>$${item.item_cost.toFixed(2)}</td>
                 <td>$${item.list_price.toFixed(2)}</td>
                 <td>${isSold ? '$' + (item.actual_sale_price || 0).toFixed(2) : '-'}</td>
-                <td>${isSold ? '$' + (item.shipping_charged || 0).toFixed(2) + ' / $' + (item.shipping_cost || 0).toFixed(2) : '-'}</td>
                 <td class="${isSold ? 'payout-text' : ''}">${isSold ? '$' + (item.total_payout || 0).toFixed(2) : '-'}</td>
                 <td class="${isSold ? 'profit-text' : ''}">${isSold ? '$' + (item.net_profit || 0).toFixed(2) : '-'}</td>
                 <td>${item.date_listed}</td>
