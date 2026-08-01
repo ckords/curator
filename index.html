@@ -20,6 +20,7 @@
             --profit: #27ae60;
             --payout: #2980b9;
             --margin: #8e44ad;
+            --comp: #f39c12;
         }
         body {
             font-family: 'Inter', sans-serif; 
@@ -62,15 +63,9 @@
             border-radius: 6px;
             box-shadow: 0 2px 4px rgba(0,0,0,0.05);
         }
-        .card.card-payout {
-            border-left-color: var(--payout);
-        }
-        .card.card-profit {
-            border-left-color: var(--profit);
-        }
-        .card.card-margin {
-            border-left-color: var(--margin);
-        }
+        .card.card-payout { border-left-color: var(--payout); }
+        .card.card-profit { border-left-color: var(--profit); }
+        .card.card-margin { border-left-color: var(--margin); }
         .card-label {
             font-size: 11px;
             font-weight: bold;
@@ -84,15 +79,9 @@
             color: var(--primary);
             margin-top: 5px;
         }
-        .card-payout .card-value {
-            color: var(--payout);
-        }
-        .card-profit .card-value {
-            color: var(--profit);
-        }
-        .card-margin .card-value {
-            color: var(--margin);
-        }
+        .card-payout .card-value { color: var(--payout); }
+        .card-profit .card-value { color: var(--profit); }
+        .card-margin .card-value { color: var(--margin); }
 
         /* Chart Container */
         .chart-container {
@@ -101,14 +90,14 @@
             border-radius: 6px;
             padding: 15px;
             margin-bottom: 25px;
-            height: 280px;
+            height: 260px;
             position: relative;
         }
 
         .form-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-            gap: 15px;
+            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            gap: 12px;
             margin-bottom: 25px;
         }
         input, select, button {
@@ -127,8 +116,12 @@
             font-weight: bold;
             transition: background 0.3s;
         }
-        button:hover {
-            background-color: #128f76;
+        button:hover { background-color: #128f76; }
+        .btn-comp-trigger {
+            background-color: var(--comp);
+        }
+        .btn-comp-trigger:hover {
+            background-color: #d68910;
         }
 
         /* Search & Filter Controls */
@@ -143,18 +136,8 @@
             border-radius: 6px;
             border: 1px solid #e0e0e0;
         }
-        .search-input {
-            flex: 2;
-            min-width: 180px;
-            padding: 8px 12px;
-            font-size: 14px;
-        }
-        .filter-select {
-            flex: 1;
-            min-width: 130px;
-            padding: 8px 12px;
-            font-size: 14px;
-        }
+        .search-input { flex: 2; min-width: 180px; }
+        .filter-select { flex: 1; min-width: 130px; }
         .date-group {
             display: flex;
             align-items: center;
@@ -162,10 +145,6 @@
             font-size: 12px;
             font-weight: bold;
             color: #555;
-        }
-        .date-group input {
-            padding: 6px 10px;
-            font-size: 13px;
         }
         .reset-link {
             font-size: 12px;
@@ -191,59 +170,27 @@
             color: white;
             user-select: none;
         }
-        th.sortable {
-            cursor: pointer;
-            transition: background 0.2s;
-        }
-        th.sortable:hover {
-            background-color: #34495e;
-        }
-        .sort-icon {
-            font-size: 11px;
-            margin-left: 4px;
-            opacity: 0.7;
-        }
+        th.sortable { cursor: pointer; }
+        th.sortable:hover { background-color: #34495e; }
+        .sort-icon { font-size: 11px; margin-left: 4px; opacity: 0.7; }
 
-        .stale-listing {
-            color: var(--warning);
-            font-weight: bold;
-        }
-        .status-sold {
-            background-color: #f8f9fa;
-            color: var(--sold);
-        }
-        .profit-text {
-            color: var(--profit);
-            font-weight: bold;
-        }
-        .payout-text {
-            color: var(--payout);
-            font-weight: bold;
-        }
+        .stale-listing { color: var(--warning); font-weight: bold; }
+        .status-sold { background-color: #f8f9fa; color: var(--sold); }
+        .profit-text { color: var(--profit); font-weight: bold; }
+        .payout-text { color: var(--payout); font-weight: bold; }
+        
         .action-btn {
             font-size: 11px;
-            padding: 6px 10px;
-            margin-right: 4px;
+            padding: 5px 8px;
+            margin-right: 3px;
             border-radius: 3px;
         }
-        .btn-edit {
-            background-color: #2980b9;
-        }
-        .btn-edit:hover {
-            background-color: #2471a3;
-        }
-        .btn-sold {
-            background-color: #27ae60;
-        }
-        .btn-sold:hover {
-            background-color: #1e8449;
-        }
-        .btn-delete {
-            background-color: #e74c3c;
-        }
-        .btn-delete:hover {
-            background-color: #c0392b;
-        }
+        .btn-edit { background-color: #2980b9; }
+        .btn-edit:hover { background-color: #2471a3; }
+        .btn-sold { background-color: #27ae60; }
+        .btn-sold:hover { background-color: #1e8449; }
+        .btn-delete { background-color: #e74c3c; }
+        .btn-delete:hover { background-color: #c0392b; }
 
         /* Modal Styles */
         .modal-overlay {
@@ -265,7 +212,7 @@
             padding: 25px;
             border-radius: 8px;
             width: 100%;
-            max-width: 450px;
+            max-width: 500px;
             box-shadow: 0 4px 10px rgba(0,0,0,0.2);
             max-height: 90vh;
             overflow-y: auto;
@@ -294,41 +241,56 @@
             gap: 10px;
             margin-top: 20px;
         }
-        .btn-cancel {
-            background-color: #95a5a6;
+        .btn-cancel { background-color: #95a5a6; }
+
+        /* Comp Generator Specific Styles */
+        .dropzone {
+            border: 2px dashed #3498db;
+            padding: 20px;
+            text-align: center;
+            background: #f0f8ff;
+            border-radius: 6px;
+            cursor: pointer;
+            margin-bottom: 15px;
         }
-        .btn-cancel:hover {
-            background-color: #7f8c8d;
+        .dropzone img {
+            max-height: 120px;
+            border-radius: 4px;
+            margin-top: 10px;
         }
+        .comp-links-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+            gap: 10px;
+            margin-top: 15px;
+        }
+        .comp-link-btn {
+            display: inline-block;
+            text-align: center;
+            padding: 10px;
+            background: var(--primary);
+            color: white;
+            text-decoration: none;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: bold;
+            transition: opacity 0.2s;
+        }
+        .comp-link-btn:hover { opacity: 0.9; }
+        .btn-ebay { background: #e53238; }
+        .btn-fb { background: #1877f2; }
+        .btn-google { background: #ea4335; }
 
         /* MOBILE RESPONSIVE CARD VIEW */
         @media (max-width: 768px) {
-            body {
-                padding: 10px;
-            }
-            .container {
-                padding: 15px;
-            }
-            .table-controls {
-                flex-direction: column;
-                align-items: stretch;
-            }
-            .search-input, .filter-select, .date-group {
-                width: 100%;
-            }
-            .date-group {
-                flex-direction: column;
-                align-items: flex-start;
-            }
+            body { padding: 10px; }
+            .container { padding: 15px; }
+            .table-controls { flex-direction: column; align-items: stretch; }
+            .search-input, .filter-select, .date-group { width: 100%; }
+            .date-group { flex-direction: column; align-items: flex-start; }
             
-            table thead {
-                display: none;
-            }
-
-            table, tbody, tr, td {
-                display: block;
-                width: 100%;
-            }
+            table thead { display: none; }
+            table, tbody, tr, td { display: block; width: 100%; }
 
             table tr {
                 background: #fff;
@@ -409,6 +371,7 @@
         <input type="number" id="listPrice" placeholder="List Price ($)" step="0.01" required>
         <input type="date" id="dateListed" required>
         <button onclick="addListing()">Add Item</button>
+        <button class="btn-comp-trigger" onclick="openCompModal()">🔍 Find Comps</button>
     </div>
 
     <!-- Table Search & Filter Controls -->
@@ -455,6 +418,42 @@
             <!-- Listings will populate here -->
         </tbody>
     </table>
+</div>
+
+<!-- Modal Pop-Up for AI Image & Comp Generator -->
+<div class="modal-overlay" id="compModal">
+    <div class="modal-content">
+        <h2>🔍 Item Comp & Valuation Finder</h2>
+        
+        <div class="dropzone" onclick="document.getElementById('compFileInput').click()">
+            <div id="dropzoneText">📸 Click or Drop Photo Here to Analyze</div>
+            <input type="file" id="compFileInput" accept="image/*" style="display:none;" onchange="handleImageUpload(event)">
+            <img id="compImagePreview" src="" alt="Preview" style="display:none;">
+        </div>
+
+        <div class="modal-group">
+            <label for="compQuery">Search Keywords / Item Title</label>
+            <input type="text" id="compQuery" placeholder="e.g. Nintendo GameCube Console Black" oninput="generateCompLinks()">
+        </div>
+
+        <div class="comp-links-grid">
+            <a id="linkEbay" href="#" target="_blank" class="comp-link-btn btn-ebay">eBay Sold Listings</a>
+            <a id="linkFB" href="#" target="_blank" class="comp-link-btn btn-fb">Facebook Market</a>
+            <a id="linkGoogle" href="#" target="_blank" class="comp-link-btn btn-google">Google Shopping</a>
+        </div>
+
+        <div style="margin-top:20px; border-top: 1px solid #eee; padding-top:15px;">
+            <div class="modal-group">
+                <label for="compSuggestedPrice">Suggested List Price ($)</label>
+                <input type="number" id="compSuggestedPrice" step="0.01" placeholder="0.00">
+            </div>
+        </div>
+
+        <div class="modal-actions">
+            <button class="btn-cancel" onclick="closeCompModal()">Close</button>
+            <button onclick="applyCompToForm()">Apply to Form</button>
+        </div>
+    </div>
 </div>
 
 <!-- Modal Pop-Up for Completing Sale -->
@@ -579,7 +578,7 @@
         filterTable();
     }
 
-    // 5. Update Top Summary Cards & Chart Visualization
+    // 5. Update Top Summary Cards
     function updateSummaryCards(data) {
         if (!data) return;
 
@@ -609,7 +608,6 @@
     function updateSalesChart(data) {
         const monthlyData = {};
 
-        // Aggregate earnings by Month (YYYY-MM)
         data.forEach(item => {
             if (item.status === 'Sold' && item.date_listed) {
                 const monthKey = item.date_listed.substring(0, 7);
@@ -679,7 +677,68 @@
         });
     }
 
-    // 7. Sort Handler
+    // 7. Comp & Valuation Modal Logic
+    function openCompModal(itemName = '') {
+        const queryInput = document.getElementById('compQuery');
+        queryInput.value = itemName || document.getElementById('itemName').value || '';
+        document.getElementById('compImagePreview').style.display = 'none';
+        document.getElementById('dropzoneText').style.display = 'block';
+        document.getElementById('compSuggestedPrice').value = '';
+        
+        generateCompLinks();
+        document.getElementById('compModal').style.display = 'flex';
+    }
+
+    function closeCompModal() {
+        document.getElementById('compModal').style.display = 'none';
+    }
+
+    function handleImageUpload(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            const preview = document.getElementById('compImagePreview');
+            preview.src = e.target.result;
+            preview.style.display = 'inline-block';
+            document.getElementById('dropzoneText').style.display = 'none';
+
+            // Auto-extract filename as starting search query
+            const rawName = file.name.replace(/\.[^/.]+$/, "").replace(/[-_]/g, " ");
+            const currentQuery = document.getElementById('compQuery').value;
+            if (!currentQuery) {
+                document.getElementById('compQuery').value = rawName;
+                generateCompLinks();
+            }
+        };
+        reader.readAsDataURL(file);
+    }
+
+    function generateCompLinks() {
+        const query = document.getElementById('compQuery').value.trim();
+        const encoded = encodeURIComponent(query);
+
+        const ebayUrl = `https://www.ebay.com/sch/i.html?_nkw=${encoded}&LH_Sold=1&LH_Complete=1`;
+        const fbUrl = `https://www.facebook.com/marketplace/search/?query=${encoded}`;
+        const googleUrl = `https://www.google.com/search?tbm=shop&q=${encoded}`;
+
+        document.getElementById('linkEbay').href = ebayUrl;
+        document.getElementById('linkFB').href = fbUrl;
+        document.getElementById('linkGoogle').href = googleUrl;
+    }
+
+    function applyCompToForm() {
+        const query = document.getElementById('compQuery').value.trim();
+        const suggestedPrice = document.getElementById('compSuggestedPrice').value;
+
+        if (query) document.getElementById('itemName').value = query;
+        if (suggestedPrice) document.getElementById('listPrice').value = suggestedPrice;
+
+        closeCompModal();
+    }
+
+    // 8. Sort Handler
     function sortTable(columnKey) {
         if (currentSortColumn === columnKey) {
             currentSortDirection = currentSortDirection === 'asc' ? 'desc' : 'asc';
@@ -698,7 +757,7 @@
         filterTable();
     }
 
-    // 8. Filter & Sort Table Data
+    // 9. Filter & Sort Table Data
     function filterTable() {
         const query = document.getElementById('searchInput').value.toLowerCase().trim();
         const statusChoice = document.getElementById('statusFilter').value;
@@ -759,7 +818,7 @@
         filterTable();
     }
 
-    // 9. Save new listing to Supabase
+    // 10. Save new listing to Supabase
     async function addListing() {
         const name = document.getElementById('itemName').value;
         const platform = document.getElementById('platform').value;
@@ -802,7 +861,7 @@
         fetchListings(); 
     }
 
-    // 10. Edit Modal Handling
+    // 11. Edit Modal Handling
     function openEditModal(item) {
         document.getElementById('editItemId').value = item.id;
         document.getElementById('editItemName').value = item.item_name || '';
@@ -868,7 +927,7 @@
         fetchListings();
     }
 
-    // 11. Handle Sold Modal Action
+    // 12. Handle Sold Modal Action
     async function toggleSold(item) {
         if (item.status === 'Sold') {
             const { error } = await supabaseClient
@@ -929,7 +988,7 @@
         fetchListings();
     }
 
-    // 12. Delete Item
+    // 13. Delete Item
     async function deleteItem(id, name) {
         if (!confirm(`Are you sure you want to delete "${name}"?`)) return;
 
@@ -947,7 +1006,7 @@
         fetchListings();
     }
 
-    // 13. Render Table / Cards
+    // 14. Render Table / Cards
     function renderTable(inventoryData) {
         const tbody = document.getElementById('inventoryBody');
         tbody.innerHTML = '';
@@ -983,6 +1042,7 @@
                 <td data-label="Date Listed">${item.date_listed}</td>
                 <td data-label="Days Active" class="${daysClass}">${isSold ? '-' : diffDays + ' Days'}</td>
                 <td data-label="Actions">
+                    <button class="action-btn btn-comp-trigger" onclick='openCompModal("${item.item_name}")'>Comps</button>
                     <button class="action-btn btn-edit" onclick='openEditModal(${itemJson})'>Edit</button>
                     <button class="action-btn btn-sold" onclick='toggleSold(${itemJson})'>
                         ${isSold ? 'Reactivate' : 'Mark Sold'}
