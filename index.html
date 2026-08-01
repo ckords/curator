@@ -17,6 +17,7 @@
             --warning: #e74c3c;
             --sold: #7f8c8d;
             --profit: #27ae60;
+            --payout: #2980b9;
         }
         body {
             font-family: 'Inter', sans-serif; 
@@ -30,7 +31,7 @@
         }
         .container {
             width: 100%;
-            max-width: 1150px;
+            max-width: 1200px;
             background: #fff;
             padding: 30px;
             border-radius: 8px;
@@ -90,6 +91,10 @@
         }
         .profit-text {
             color: var(--profit);
+            font-weight: bold;
+        }
+        .payout-text {
+            color: var(--payout);
             font-weight: bold;
         }
         .action-btn {
@@ -191,6 +196,7 @@
                 <th>List Price</th>
                 <th>Actual Sale</th>
                 <th>Ship Paid / Cost</th>
+                <th>Total Payout</th>
                 <th>Net Profit</th>
                 <th>Date Listed</th>
                 <th>Days Active</th>
@@ -319,6 +325,7 @@
                     actual_sale_price: 0,
                     shipping_charged: 0,
                     shipping_cost: 0,
+                    total_payout: 0,
                     net_profit: 0
                 })
                 .eq('id', item.id);
@@ -356,10 +363,14 @@
 
         // Calculate Fee (eBay 13.25% or Facebook 0%)
         const feeRate = platform === 'eBay' ? 0.1325 : 0.00;
-        const estimatedFee = (salePrice + shipCharged) * feeRate;
+        const grossTotal = salePrice + shipCharged;
+        const estimatedFee = grossTotal * feeRate;
 
-        // Net Profit Calculation
-        const netProfit = (salePrice + shipCharged) - (cost + shipCost + estimatedFee);
+        // Total Received (Payout after platform fees)
+        const totalPayout = grossTotal - estimatedFee;
+
+        // Net Profit (Total Payout - Item Cost - Actual Shipping Cost)
+        const netProfit = totalPayout - cost - shipCost;
 
         const { error } = await supabaseClient
             .from('curator_listings')
@@ -368,6 +379,7 @@
                 actual_sale_price: salePrice,
                 shipping_charged: shipCharged,
                 shipping_cost: shipCost,
+                total_payout: totalPayout,
                 net_profit: netProfit
             })
             .eq('id', id);
@@ -429,6 +441,7 @@
                 <td>$${item.list_price.toFixed(2)}</td>
                 <td>${isSold ? '$' + (item.actual_sale_price || 0).toFixed(2) : '-'}</td>
                 <td>${isSold ? '$' + (item.shipping_charged || 0).toFixed(2) + ' / $' + (item.shipping_cost || 0).toFixed(2) : '-'}</td>
+                <td class="${isSold ? 'payout-text' : ''}">${isSold ? '$' + (item.total_payout || 0).toFixed(2) : '-'}</td>
                 <td class="${isSold ? 'profit-text' : ''}">${isSold ? '$' + (item.net_profit || 0).toFixed(2) : '-'}</td>
                 <td>${item.date_listed}</td>
                 <td class="${daysClass}">${isSold ? '-' : diffDays + ' Days'}</td>
