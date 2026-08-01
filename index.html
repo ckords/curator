@@ -88,7 +88,7 @@
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
             gap: 15px;
-            margin-bottom: 20px;
+            margin-bottom: 25px;
         }
         input, select, button {
             padding: 10px;
@@ -108,10 +108,25 @@
         button:hover {
             background-color: #128f76;
         }
+
+        /* Search Bar Controls */
+        .table-controls {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        .search-input {
+            width: 100%;
+            max-width: 300px;
+            padding: 8px 12px;
+            font-size: 14px;
+        }
+
         table {
             width: 100%;
             border-collapse: collapse;
-            margin-top: 20px;
+            margin-top: 10px;
         }
         th, td {
             padding: 12px;
@@ -244,6 +259,11 @@
         <button onclick="addListing()">Add Item</button>
     </div>
 
+    <!-- Table Search Controls -->
+    <div class="table-controls">
+        <input type="text" id="searchInput" class="search-input" placeholder="🔍 Search inventory..." oninput="filterTable()">
+    </div>
+
     <!-- Data Table -->
     <table>
         <thead>
@@ -297,6 +317,9 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
 <script>
+    // Global variable to hold loaded inventory items for fast client-side filtering
+    let allInventoryData = [];
+
     // 1. Initialize Supabase Connection
     const supabaseUrl = 'https://qlygxviynzwpkjmxlvmo.supabase.co';
     const supabaseKey = 'sb_publishable_bidLIrWAsKQZNjzURL_Iiw_UTLW_FrP'; 
@@ -319,8 +342,10 @@
             console.error('Error fetching inventory:', error);
             return;
         }
-        renderTable(data);
-        updateSummaryCards(data);
+
+        allInventoryData = data || [];
+        renderTable(allInventoryData);
+        updateSummaryCards(allInventoryData);
     }
 
     // 5. Update Top Summary Cards
@@ -344,7 +369,27 @@
         document.getElementById('cardSoldCount').innerText = soldCount;
     }
 
-    // 6. Save new listing to Supabase
+    // 6. Filter Table Data Dynamic Search
+    function filterTable() {
+        const query = document.getElementById('searchInput').value.toLowerCase().trim();
+        
+        if (!query) {
+            renderTable(allInventoryData);
+            return;
+        }
+
+        const filtered = allInventoryData.filter(item => {
+            const nameMatch = item.item_name && item.item_name.toLowerCase().includes(query);
+            const platformMatch = item.platform && item.platform.toLowerCase().includes(query);
+            const statusMatch = item.status && item.status.toLowerCase().includes(query);
+            
+            return nameMatch || platformMatch || statusMatch;
+        });
+
+        renderTable(filtered);
+    }
+
+    // 7. Save new listing to Supabase
     async function addListing() {
         const name = document.getElementById('itemName').value;
         const platform = document.getElementById('platform').value;
@@ -387,7 +432,7 @@
         fetchListings(); 
     }
 
-    // 7. Handle Sold Action
+    // 8. Handle Sold Action
     async function toggleSold(item) {
         if (item.status === 'Sold') {
             const { error } = await supabaseClient
@@ -448,7 +493,7 @@
         fetchListings();
     }
 
-    // 8. Delete Item
+    // 9. Delete Item
     async function deleteItem(id, name) {
         if (!confirm(`Are you sure you want to delete "${name}"?`)) return;
 
@@ -466,12 +511,15 @@
         fetchListings();
     }
 
-    // 9. Render Table
+    // 10. Render Table
     function renderTable(inventoryData) {
         const tbody = document.getElementById('inventoryBody');
         tbody.innerHTML = '';
 
-        if (!inventoryData) return;
+        if (!inventoryData || inventoryData.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="11" style="text-align:center; color:#7f8c8d;">No matching inventory items found.</td></tr>';
+            return;
+        }
 
         inventoryData.forEach((item) => {
             const row = document.createElement('tr');
