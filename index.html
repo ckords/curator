@@ -3,7 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Listing & Inventory Tracker</title>
+    <title>Curator</title>
+    
+    <!-- Import Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&family=Lora:ital,wght@0,400;0,600&family=Montserrat:wght@400;600&display=swap" rel="stylesheet">
+    
     <style>
         :root {
             --primary: #2c3e50;
@@ -13,7 +17,15 @@
             --warning: #e74c3c;
         }
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            /* Font Option 1: Clean & Professional (Active) */
+            font-family: 'Inter', sans-serif; 
+            
+            /* Font Option 2: Geometric & Modern */
+            /* font-family: 'Montserrat', sans-serif; */
+            
+            /* Font Option 3: Mercantile & Elegant */
+            /* font-family: 'Lora', serif; */
+            
             background-color: var(--background);
             color: var(--text);
             margin: 0;
@@ -34,6 +46,7 @@
             color: var(--primary);
             border-bottom: 2px solid var(--secondary);
             padding-bottom: 10px;
+            text-align: center; /* Centered alignment */
         }
         .form-grid {
             display: grid;
@@ -45,6 +58,7 @@
             padding: 10px;
             border: 1px solid #ccc;
             border-radius: 4px;
+            font-family: inherit; /* Keeps inputs matching your chosen font */
             font-size: 14px;
         }
         button {
@@ -86,7 +100,7 @@
 <body>
 
 <div class="container">
-    <h1>Inventory & Listing Tracker</h1>
+    <h1>Curator</h1>
     
     <div class="form-grid">
         <input type="text" id="itemName" placeholder="Item Name" required>
@@ -119,13 +133,39 @@
     </table>
 </div>
 
+<!-- Load Supabase JS Library via CDN -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
 <script>
-    // Set default date to today
+    // Initialize Supabase Connection
+    const supabaseUrl = 'https://qlygxviynzwpkjmxlvmo.supabase.co';
+    
+    // IMPORTANT: Paste your actual key here before saving!
+    const supabaseKey = 'YOUR_SUPABASE_ANON_PUBLIC_KEY_HERE'; 
+    const supabase = supabase.createClient(supabaseUrl, supabaseKey);
+
+    // Set default date in the form
     document.getElementById('dateListed').valueAsDate = new Date();
 
-    let inventory = [];
+    // Load saved listings when page opens
+    document.addEventListener('DOMContentLoaded', fetchListings);
 
-    function addListing() {
+    // Fetch listings from Supabase
+    async function fetchListings() {
+        const { data, error } = await supabase
+            .from('curator_listings')
+            .select('*')
+            .order('date_listed', { ascending: false });
+
+        if (error) {
+            console.error('Error fetching inventory:', error);
+            return;
+        }
+        renderTable(data);
+    }
+
+    // Save new listing to Supabase
+    async function addListing() {
         const name = document.getElementById('itemName').value;
         const platform = document.getElementById('platform').value;
         const cost = parseFloat(document.getElementById('itemCost').value);
@@ -138,48 +178,68 @@
         }
 
         const margin = price - cost;
-        const listDate = new Date(dateStr);
-        const today = new Date();
-        const diffTime = Math.abs(today - listDate);
-        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) - 1; 
+        const platformFee = platform === 'eBay' ? 13.25 : 0.00;
 
-        const item = { name, platform, cost, price, margin, dateStr, diffDays };
-        inventory.push(item);
-        
-        renderTable();
-        
-        // Reset specific form fields
+        const payload = {
+            item_name: name,
+            platform: platform,
+            item_cost: cost,
+            list_price: price,
+            date_listed: dateStr,
+            target_margin: margin,
+            fee_percentage: platformFee,
+            calculated_baseline: price 
+        };
+
+        const { data, error } = await supabase
+            .from('curator_listings')
+            .insert([payload]);
+
+        if (error) {
+            console.error('Error saving listing:', error);
+            alert("Failed to save. Check console for details.");
+            return;
+        }
+
         document.getElementById('itemName').value = '';
         document.getElementById('itemCost').value = '';
         document.getElementById('listPrice').value = '';
+        
+        fetchListings(); 
     }
 
-    function renderTable() {
+    // Render data into table
+    function renderTable(inventoryData) {
         const tbody = document.getElementById('inventoryBody');
         tbody.innerHTML = '';
 
-        inventory.forEach((item, index) => {
+        if (!inventoryData) return;
+
+        inventoryData.forEach((item) => {
             const row = document.createElement('tr');
             
-            // Flag items listed for more than 30 days
-            const daysClass = item.diffDays > 30 ? 'stale-listing' : '';
+            const listDate = new Date(item.date_listed);
+            const today = new Date();
+            const diffTime = Math.abs(today - listDate);
+            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) - 1; 
+            
+            const daysClass = diffDays > 30 ? 'stale-listing' : '';
 
             row.innerHTML = `
-                <td>${item.name}</td>
+                <td>${item.item_name}</td>
                 <td>${item.platform}</td>
-                <td>$${item.cost.toFixed(2)}</td>
-                <td>$${item.price.toFixed(2)}</td>
-                <td>$${item.margin.toFixed(2)}</td>
-                <td>${item.dateStr}</td>
-                <td class="${daysClass}">${item.diffDays} Days</td>
-                <td><button class="comps-btn" onclick="searchComps('${item.name}')">Run Comps</button></td>
+                <td>$${item.item_cost.toFixed(2)}</td>
+                <td>$${item.list_price.toFixed(2)}</td>
+                <td>$${item.target_margin.toFixed(2)}</td>
+                <td>${item.date_listed}</td>
+                <td class="${daysClass}">${diffDays} Days</td>
+                <td><button class="comps-btn" onclick="searchComps('${item.item_name}')">Run Comps</button></td>
             `;
             tbody.appendChild(row);
         });
     }
 
     function searchComps(itemName) {
-        // Placeholder for future API integration
         alert("This will eventually ping the eBay API to find average sold prices for: " + itemName);
     }
 </script>
