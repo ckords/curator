@@ -147,10 +147,6 @@
             padding: 6px 10px;
             font-size: 13px;
         }
-        .btn-filter {
-            padding: 8px 12px;
-            font-size: 13px;
-        }
         .reset-link {
             font-size: 12px;
             color: var(--warning);
@@ -196,6 +192,12 @@
             margin-right: 4px;
             border-radius: 3px;
         }
+        .btn-edit {
+            background-color: #2980b9;
+        }
+        .btn-edit:hover {
+            background-color: #2471a3;
+        }
         .btn-sold {
             background-color: #27ae60;
         }
@@ -207,15 +209,6 @@
         }
         .btn-delete:hover {
             background-color: #c0392b;
-        }
-
-        /* Inline Editable Cell Styles */
-        .editable {
-            cursor: pointer;
-            border-bottom: 1px dashed #aaa;
-        }
-        .editable:hover {
-            background-color: #f0f3f4;
         }
 
         /* Modal Styles */
@@ -238,8 +231,10 @@
             padding: 25px;
             border-radius: 8px;
             width: 100%;
-            max-width: 400px;
+            max-width: 450px;
             box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+            max-height: 90vh;
+            overflow-y: auto;
         }
         .modal-content h2 {
             margin-top: 0;
@@ -373,7 +368,7 @@
         <button onclick="addListing()">Add Item</button>
     </div>
 
-    <!-- Table Search & Filter Controls (including Date Range Filter) -->
+    <!-- Table Search & Filter Controls -->
     <div class="table-controls">
         <input type="text" id="searchInput" class="search-input" placeholder="🔍 Search inventory..." oninput="filterTable()">
         
@@ -419,7 +414,7 @@
     </table>
 </div>
 
-<!-- Modal Pop-Up for Sold Details -->
+<!-- Modal Pop-Up for Completing Sale -->
 <div class="modal-overlay" id="soldModal">
     <div class="modal-content">
         <h2 id="modalTitle">Complete Sale</h2>
@@ -441,6 +436,66 @@
         <div class="modal-actions">
             <button class="btn-cancel" onclick="closeModal()">Cancel</button>
             <button class="btn-sold" onclick="confirmSold()">Save Sale</button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Pop-Up for Full Item Editing -->
+<div class="modal-overlay" id="editModal">
+    <div class="modal-content">
+        <h2>Edit Listing</h2>
+        
+        <input type="hidden" id="editItemId">
+
+        <div class="modal-group">
+            <label for="editItemName">Item Name</label>
+            <input type="text" id="editItemName">
+        </div>
+
+        <div class="modal-group">
+            <label for="editPlatform">Platform</label>
+            <select id="editPlatform">
+                <option value="eBay">eBay</option>
+                <option value="Facebook">Facebook Marketplace</option>
+            </select>
+        </div>
+
+        <div class="modal-group">
+            <label for="editItemCost">Cost ($)</label>
+            <input type="number" id="editItemCost" step="0.01">
+        </div>
+
+        <div class="modal-group">
+            <label for="editListPrice">List Price ($)</label>
+            <input type="number" id="editListPrice" step="0.01">
+        </div>
+
+        <div class="modal-group">
+            <label for="editStatus">Status</label>
+            <select id="editStatus">
+                <option value="Active">Active</option>
+                <option value="Sold">Sold</option>
+            </select>
+        </div>
+
+        <div class="modal-group">
+            <label for="editActualSale">Actual Sale Price ($)</label>
+            <input type="number" id="editActualSale" step="0.01">
+        </div>
+
+        <div class="modal-group">
+            <label for="editTotalPayout">Order Earnings ($)</label>
+            <input type="number" id="editTotalPayout" step="0.01">
+        </div>
+
+        <div class="modal-group">
+            <label for="editDateListed">Date Listed</label>
+            <input type="date" id="editDateListed">
+        </div>
+
+        <div class="modal-actions">
+            <button class="btn-cancel" onclick="closeEditModal()">Cancel</button>
+            <button class="btn-sold" onclick="saveEditModal()">Save Changes</button>
         </div>
     </div>
 </div>
@@ -499,7 +554,7 @@
         document.getElementById('cardSoldCount').innerText = soldCount;
     }
 
-    // 6. Filter Table Data (Text, Status, and Date Range)
+    // 6. Filter Table Data
     function filterTable() {
         const query = document.getElementById('searchInput').value.toLowerCase().trim();
         const statusChoice = document.getElementById('statusFilter').value;
@@ -510,12 +565,10 @@
             const itemStatus = item.status || 'Active';
             const statusMatch = (statusChoice === 'All') || (itemStatus === statusChoice);
 
-            // Text search match
             const nameMatch = item.item_name && item.item_name.toLowerCase().includes(query);
             const platformMatch = item.platform && item.platform.toLowerCase().includes(query);
             const textMatch = !query || nameMatch || platformMatch;
 
-            // Date Range match (compares date_listed)
             let dateMatch = true;
             if (item.date_listed) {
                 const itemDate = item.date_listed;
@@ -530,7 +583,6 @@
         updateSummaryCards(filtered);
     }
 
-    // Reset all filter controls
     function resetFilters() {
         document.getElementById('searchInput').value = '';
         document.getElementById('statusFilter').value = 'All';
@@ -539,51 +591,7 @@
         filterTable();
     }
 
-    // 7. Inline Field Editing Handler
-    async function saveInlineEdit(id, field, value) {
-        let updatedVal = value.trim();
-
-        if (field === 'item_cost' || field === 'list_price') {
-            updatedVal = parseFloat(updatedVal.replace('$', ''));
-            if (isNaN(updatedVal)) {
-                alert('Please enter a valid numeric amount.');
-                fetchListings();
-                return;
-            }
-        }
-
-        if (!updatedVal) {
-            alert('Value cannot be empty.');
-            fetchListings();
-            return;
-        }
-
-        const updatePayload = { [field]: updatedVal };
-
-        if (field === 'item_cost' || field === 'list_price') {
-            const item = allInventoryData.find(i => i.id === id);
-            if (item) {
-                const newCost = field === 'item_cost' ? updatedVal : item.item_cost;
-                const newPrice = field === 'list_price' ? updatedVal : item.list_price;
-                updatePayload.target_margin = newPrice - newCost;
-            }
-        }
-
-        const { error } = await supabaseClient
-            .from('curator_listings')
-            .update(updatePayload)
-            .eq('id', id);
-
-        if (error) {
-            console.error('Error saving update:', error);
-            alert('Failed to update field.');
-            return;
-        }
-
-        fetchListings();
-    }
-
-    // 8. Save new listing to Supabase
+    // 7. Save new listing to Supabase
     async function addListing() {
         const name = document.getElementById('itemName').value;
         const platform = document.getElementById('platform').value;
@@ -626,7 +634,73 @@
         fetchListings(); 
     }
 
-    // 9. Handle Sold Action
+    // 8. Edit Modal Handling
+    function openEditModal(item) {
+        document.getElementById('editItemId').value = item.id;
+        document.getElementById('editItemName').value = item.item_name || '';
+        document.getElementById('editPlatform').value = item.platform || 'eBay';
+        document.getElementById('editItemCost').value = item.item_cost || 0;
+        document.getElementById('editListPrice').value = item.list_price || 0;
+        document.getElementById('editStatus').value = item.status || 'Active';
+        document.getElementById('editActualSale').value = item.actual_sale_price || 0;
+        document.getElementById('editTotalPayout').value = item.total_payout || 0;
+        document.getElementById('editDateListed').value = item.date_listed || '';
+
+        document.getElementById('editModal').style.display = 'flex';
+    }
+
+    function closeEditModal() {
+        document.getElementById('editModal').style.display = 'none';
+    }
+
+    async function saveEditModal() {
+        const id = document.getElementById('editItemId').value;
+        const itemName = document.getElementById('editItemName').value.trim();
+        const platform = document.getElementById('editPlatform').value;
+        const cost = parseFloat(document.getElementById('editItemCost').value) || 0;
+        const listPrice = parseFloat(document.getElementById('editListPrice').value) || 0;
+        const status = document.getElementById('editStatus').value;
+        const actualSale = parseFloat(document.getElementById('editActualSale').value) || 0;
+        const totalPayout = parseFloat(document.getElementById('editTotalPayout').value) || 0;
+        const dateListed = document.getElementById('editDateListed').value;
+
+        if (!itemName || !dateListed) {
+            alert('Item Name and Date Listed are required.');
+            return;
+        }
+
+        const targetMargin = listPrice - cost;
+        const netProfit = status === 'Sold' ? totalPayout - cost : 0;
+
+        const updatePayload = {
+            item_name: itemName,
+            platform: platform,
+            item_cost: cost,
+            list_price: listPrice,
+            status: status,
+            actual_sale_price: status === 'Sold' ? actualSale : 0,
+            total_payout: status === 'Sold' ? totalPayout : 0,
+            net_profit: netProfit,
+            target_margin: targetMargin,
+            date_listed: dateListed
+        };
+
+        const { error } = await supabaseClient
+            .from('curator_listings')
+            .update(updatePayload)
+            .eq('id', id);
+
+        if (error) {
+            console.error('Error updating listing:', error);
+            alert('Failed to update listing.');
+            return;
+        }
+
+        closeEditModal();
+        fetchListings();
+    }
+
+    // 9. Handle Sold Modal Action (Quick Complete Sale)
     async function toggleSold(item) {
         if (item.status === 'Sold') {
             const { error } = await supabaseClient
@@ -731,16 +805,17 @@
 
             row.innerHTML = `
                 <td data-label="Status"><strong>${item.status || 'Active'}</strong></td>
-                <td data-label="Item Name" ${!isSold ? `class="editable" contenteditable="true" onblur="saveInlineEdit(${item.id}, 'item_name', this.innerText)"` : ''}>${item.item_name}</td>
+                <td data-label="Item Name">${item.item_name}</td>
                 <td data-label="Platform">${item.platform}</td>
-                <td data-label="Cost" ${!isSold ? `class="editable" contenteditable="true" onblur="saveInlineEdit(${item.id}, 'item_cost', this.innerText)"` : ''}>$${item.item_cost.toFixed(2)}</td>
-                <td data-label="List Price" ${!isSold ? `class="editable" contenteditable="true" onblur="saveInlineEdit(${item.id}, 'list_price', this.innerText)"` : ''}>$${item.list_price.toFixed(2)}</td>
+                <td data-label="Cost">$${item.item_cost.toFixed(2)}</td>
+                <td data-label="List Price">$${item.list_price.toFixed(2)}</td>
                 <td data-label="Actual Sale">${isSold ? '$' + (item.actual_sale_price || 0).toFixed(2) : '-'}</td>
                 <td data-label="Order Earnings" class="${isSold ? 'payout-text' : ''}">${isSold ? '$' + (item.total_payout || 0).toFixed(2) : '-'}</td>
                 <td data-label="Net Profit" class="${isSold ? 'profit-text' : ''}">${isSold ? '$' + (item.net_profit || 0).toFixed(2) : '-'}</td>
                 <td data-label="Date Listed">${item.date_listed}</td>
                 <td data-label="Days Active" class="${daysClass}">${isSold ? '-' : diffDays + ' Days'}</td>
                 <td data-label="Actions">
+                    <button class="action-btn btn-edit" onclick='openEditModal(${itemJson})'>Edit</button>
                     <button class="action-btn btn-sold" onclick='toggleSold(${itemJson})'>
                         ${isSold ? 'Reactivate' : 'Mark Sold'}
                     </button>
