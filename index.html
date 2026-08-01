@@ -110,6 +110,58 @@
         .btn-delete:hover {
             background-color: #c0392b;
         }
+
+        /* Modal Styles */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+        .modal-content {
+            background: white;
+            padding: 25px;
+            border-radius: 8px;
+            width: 100%;
+            max-width: 400px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+        }
+        .modal-content h2 {
+            margin-top: 0;
+            color: var(--primary);
+            font-size: 18px;
+            border-bottom: 2px solid var(--secondary);
+            padding-bottom: 8px;
+        }
+        .modal-group {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+            margin-bottom: 15px;
+        }
+        .modal-group label {
+            font-size: 12px;
+            font-weight: bold;
+            color: #555;
+        }
+        .modal-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+            margin-top: 20px;
+        }
+        .btn-cancel {
+            background-color: #95a5a6;
+        }
+        .btn-cancel:hover {
+            background-color: #7f8c8d;
+        }
     </style>
 </head>
 <body>
@@ -149,6 +201,37 @@
             <!-- Listings will populate here -->
         </tbody>
     </table>
+</div>
+
+<!-- Modal Pop-Up for Sold Details -->
+<div class="modal-overlay" id="soldModal">
+    <div class="modal-content">
+        <h2 id="modalTitle">Complete Sale</h2>
+        
+        <input type="hidden" id="modalItemId">
+        <input type="hidden" id="modalItemCost">
+        <input type="hidden" id="modalPlatform">
+
+        <div class="modal-group">
+            <label for="modalSalePrice">Final Sale Price ($)</label>
+            <input type="number" id="modalSalePrice" step="0.01" placeholder="0.00">
+        </div>
+
+        <div class="modal-group">
+            <label for="modalShipCharged">Shipping Charged to Buyer ($)</label>
+            <input type="number" id="modalShipCharged" step="0.01" placeholder="0.00">
+        </div>
+
+        <div class="modal-group">
+            <label for="modalShipCost">Actual Shipping Cost Paid by You ($)</label>
+            <input type="number" id="modalShipCost" step="0.01" placeholder="0.00">
+        </div>
+
+        <div class="modal-actions">
+            <button class="btn-cancel" onclick="closeModal()">Cancel</button>
+            <button class="btn-sold" onclick="confirmSold()">Save Sale</button>
+        </div>
+    </div>
 </div>
 
 <!-- Load Supabase JS Library via CDN -->
@@ -225,10 +308,10 @@
         fetchListings(); 
     }
 
-    // 6. Mark Sold with Sale Price & Shipping Prompt
+    // 6. Handle Sold Action (Toggle / Open Modal)
     async function toggleSold(item) {
         if (item.status === 'Sold') {
-            // Reactivate item
+            // Reactivate item directly
             const { error } = await supabaseClient
                 .from('curator_listings')
                 .update({ 
@@ -245,26 +328,38 @@
             return;
         }
 
-        // Prompt for sale details
-        const salePriceStr = prompt(`Enter final sale price for "${item.item_name}":`, item.list_price);
-        if (salePriceStr === null) return;
+        // Open Modal for active items
+        document.getElementById('modalItemId').value = item.id;
+        document.getElementById('modalItemCost').value = item.item_cost;
+        document.getElementById('modalPlatform').value = item.platform;
+        document.getElementById('modalTitle').innerText = `Complete Sale: ${item.item_name}`;
+        
+        document.getElementById('modalSalePrice').value = item.list_price;
+        document.getElementById('modalShipCharged').value = "0.00";
+        document.getElementById('modalShipCost').value = "0.00";
 
-        const shipChargedStr = prompt("Enter shipping charged to buyer ($):", "0.00");
-        if (shipChargedStr === null) return;
+        document.getElementById('soldModal').style.display = 'flex';
+    }
 
-        const shipCostStr = prompt("Enter actual shipping cost paid by you ($):", "0.00");
-        if (shipCostStr === null) return;
+    function closeModal() {
+        document.getElementById('soldModal').style.display = 'none';
+    }
 
-        const salePrice = parseFloat(salePriceStr) || 0;
-        const shipCharged = parseFloat(shipChargedStr) || 0;
-        const shipCost = parseFloat(shipCostStr) || 0;
+    async function confirmSold() {
+        const id = document.getElementById('modalItemId').value;
+        const cost = parseFloat(document.getElementById('modalItemCost').value) || 0;
+        const platform = document.getElementById('modalPlatform').value;
+
+        const salePrice = parseFloat(document.getElementById('modalSalePrice').value) || 0;
+        const shipCharged = parseFloat(document.getElementById('modalShipCharged').value) || 0;
+        const shipCost = parseFloat(document.getElementById('modalShipCost').value) || 0;
 
         // Calculate Fee (eBay 13.25% or Facebook 0%)
-        const feeRate = item.platform === 'eBay' ? 0.1325 : 0.00;
+        const feeRate = platform === 'eBay' ? 0.1325 : 0.00;
         const estimatedFee = (salePrice + shipCharged) * feeRate;
 
         // Net Profit Calculation
-        const netProfit = (salePrice + shipCharged) - (item.item_cost + shipCost + estimatedFee);
+        const netProfit = (salePrice + shipCharged) - (cost + shipCost + estimatedFee);
 
         const { error } = await supabaseClient
             .from('curator_listings')
@@ -275,7 +370,7 @@
                 shipping_cost: shipCost,
                 net_profit: netProfit
             })
-            .eq('id', item.id);
+            .eq('id', id);
 
         if (error) {
             console.error('Error marking as sold:', error);
@@ -283,6 +378,7 @@
             return;
         }
 
+        closeModal();
         fetchListings();
     }
 
