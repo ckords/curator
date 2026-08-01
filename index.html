@@ -35,6 +35,7 @@
             padding: 30px;
             border-radius: 8px;
             box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            box-sizing: border-box;
         }
         h1 {
             color: var(--primary);
@@ -96,6 +97,7 @@
             border-radius: 4px;
             font-family: inherit;
             font-size: 14px;
+            box-sizing: border-box;
         }
         button {
             background-color: var(--secondary);
@@ -129,6 +131,7 @@
             font-size: 14px;
         }
 
+        /* Desktop Table Styling */
         table {
             width: 100%;
             border-collapse: collapse;
@@ -161,7 +164,7 @@
         }
         .action-btn {
             font-size: 11px;
-            padding: 5px 8px;
+            padding: 6px 10px;
             margin-right: 4px;
             border-radius: 3px;
         }
@@ -199,6 +202,8 @@
             justify-content: center;
             align-items: center;
             z-index: 1000;
+            padding: 15px;
+            box-sizing: border-box;
         }
         .modal-content {
             background: white;
@@ -237,6 +242,68 @@
         }
         .btn-cancel:hover {
             background-color: #7f8c8d;
+        }
+
+        /* MOBILE RESPONSIVE CARD VIEW (Screens <= 768px) */
+        @media (max-width: 768px) {
+            body {
+                padding: 10px;
+            }
+            .container {
+                padding: 15px;
+            }
+            .filter-select {
+                width: 100%;
+            }
+            
+            /* Hide Desktop Table Header */
+            table thead {
+                display: none;
+            }
+
+            table, tbody, tr, td {
+                display: block;
+                width: 100%;
+            }
+
+            /* Transform Rows into Cards */
+            table tr {
+                background: #fff;
+                border: 1px solid #e0e0e0;
+                border-radius: 8px;
+                margin-bottom: 15px;
+                padding: 12px 15px;
+                box-shadow: 0 2px 4px rgba(0,0,0,0.03);
+                box-sizing: border-box;
+            }
+
+            /* Format Data Cells Inside Mobile Cards */
+            table td {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                padding: 8px 0;
+                border-bottom: 1px solid #f0f0f0;
+                text-align: right;
+                font-size: 14px;
+            }
+
+            table td:last-child {
+                border-bottom: none;
+                justify-content: flex-end;
+                padding-top: 12px;
+            }
+
+            /* Inject Column Headers via ::before pseudo-element */
+            table td::before {
+                content: attr(data-label);
+                font-weight: bold;
+                color: #7f8c8d;
+                text-align: left;
+                font-size: 12px;
+                text-transform: uppercase;
+                padding-right: 10px;
+            }
         }
     </style>
 </head>
@@ -284,7 +351,7 @@
         </select>
     </div>
 
-    <!-- Data Table -->
+    <!-- Data Table / Mobile Cards -->
     <table>
         <thead>
             <tr>
@@ -428,7 +495,6 @@
 
         const updatePayload = { [field]: updatedVal };
 
-        // Recalculate target margin if cost or list price changed
         if (field === 'item_cost' || field === 'list_price') {
             const item = allInventoryData.find(i => i.id === id);
             if (item) {
@@ -574,7 +640,7 @@
         fetchListings();
     }
 
-    // 11. Render Table
+    // 11. Render Table / Cards
     function renderTable(inventoryData) {
         const tbody = document.getElementById('inventoryBody');
         tbody.innerHTML = '';
@@ -599,17 +665,17 @@
             const itemJson = JSON.stringify(item).replace(/'/g, "&apos;");
 
             row.innerHTML = `
-                <td><strong>${item.status || 'Active'}</strong></td>
-                <td ${!isSold ? `class="editable" contenteditable="true" onblur="saveInlineEdit(${item.id}, 'item_name', this.innerText)"` : ''}>${item.item_name}</td>
-                <td>${item.platform}</td>
-                <td ${!isSold ? `class="editable" contenteditable="true" onblur="saveInlineEdit(${item.id}, 'item_cost', this.innerText)"` : ''}>$${item.item_cost.toFixed(2)}</td>
-                <td ${!isSold ? `class="editable" contenteditable="true" onblur="saveInlineEdit(${item.id}, 'list_price', this.innerText)"` : ''}>$${item.list_price.toFixed(2)}</td>
-                <td>${isSold ? '$' + (item.actual_sale_price || 0).toFixed(2) : '-'}</td>
-                <td class="${isSold ? 'payout-text' : ''}">${isSold ? '$' + (item.total_payout || 0).toFixed(2) : '-'}</td>
-                <td class="${isSold ? 'profit-text' : ''}">${isSold ? '$' + (item.net_profit || 0).toFixed(2) : '-'}</td>
-                <td>${item.date_listed}</td>
-                <td class="${daysClass}">${isSold ? '-' : diffDays + ' Days'}</td>
-                <td>
+                <td data-label="Status"><strong>${item.status || 'Active'}</strong></td>
+                <td data-label="Item Name" ${!isSold ? `class="editable" contenteditable="true" onblur="saveInlineEdit(${item.id}, 'item_name', this.innerText)"` : ''}>${item.item_name}</td>
+                <td data-label="Platform">${item.platform}</td>
+                <td data-label="Cost" ${!isSold ? `class="editable" contenteditable="true" onblur="saveInlineEdit(${item.id}, 'item_cost', this.innerText)"` : ''}>$${item.item_cost.toFixed(2)}</td>
+                <td data-label="List Price" ${!isSold ? `class="editable" contenteditable="true" onblur="saveInlineEdit(${item.id}, 'list_price', this.innerText)"` : ''}>$${item.list_price.toFixed(2)}</td>
+                <td data-label="Actual Sale">${isSold ? '$' + (item.actual_sale_price || 0).toFixed(2) : '-'}</td>
+                <td data-label="Order Earnings" class="${isSold ? 'payout-text' : ''}">${isSold ? '$' + (item.total_payout || 0).toFixed(2) : '-'}</td>
+                <td data-label="Net Profit" class="${isSold ? 'profit-text' : ''}">${isSold ? '$' + (item.net_profit || 0).toFixed(2) : '-'}</td>
+                <td data-label="Date Listed">${item.date_listed}</td>
+                <td data-label="Days Active" class="${daysClass}">${isSold ? '-' : diffDays + ' Days'}</td>
+                <td data-label="Actions">
                     <button class="action-btn btn-sold" onclick='toggleSold(${itemJson})'>
                         ${isSold ? 'Reactivate' : 'Mark Sold'}
                     </button>
