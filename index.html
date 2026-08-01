@@ -16,6 +16,7 @@
             --text: #333;
             --warning: #e74c3c;
             --sold: #7f8c8d;
+            --profit: #27ae60;
         }
         body {
             font-family: 'Inter', sans-serif; 
@@ -29,7 +30,7 @@
         }
         .container {
             width: 100%;
-            max-width: 1100px;
+            max-width: 1150px;
             background: #fff;
             padding: 30px;
             border-radius: 8px;
@@ -86,7 +87,10 @@
         .status-sold {
             background-color: #f8f9fa;
             color: var(--sold);
-            text-decoration: line-through;
+        }
+        .profit-text {
+            color: var(--profit);
+            font-weight: bold;
         }
         .action-btn {
             font-size: 11px;
@@ -105,9 +109,6 @@
         }
         .btn-delete:hover {
             background-color: #c0392b;
-        }
-        .btn-comps {
-            background-color: var(--primary);
         }
     </style>
 </head>
@@ -136,7 +137,9 @@
                 <th>Platform</th>
                 <th>Cost</th>
                 <th>List Price</th>
-                <th>Potential Margin</th>
+                <th>Actual Sale</th>
+                <th>Ship Paid / Cost</th>
+                <th>Net Profit</th>
                 <th>Date Listed</th>
                 <th>Days Active</th>
                 <th>Actions</th>
@@ -222,17 +225,60 @@
         fetchListings(); 
     }
 
-    // 6. Toggle Status (Mark as Sold / Active)
-    async function toggleSold(id, currentStatus) {
-        const newStatus = currentStatus === 'Sold' ? 'Active' : 'Sold';
-        
+    // 6. Mark Sold with Sale Price & Shipping Prompt
+    async function toggleSold(item) {
+        if (item.status === 'Sold') {
+            // Reactivate item
+            const { error } = await supabaseClient
+                .from('curator_listings')
+                .update({ 
+                    status: 'Active',
+                    actual_sale_price: 0,
+                    shipping_charged: 0,
+                    shipping_cost: 0,
+                    net_profit: 0
+                })
+                .eq('id', item.id);
+
+            if (error) console.error('Error reactivating:', error);
+            fetchListings();
+            return;
+        }
+
+        // Prompt for sale details
+        const salePriceStr = prompt(`Enter final sale price for "${item.item_name}":`, item.list_price);
+        if (salePriceStr === null) return;
+
+        const shipChargedStr = prompt("Enter shipping charged to buyer ($):", "0.00");
+        if (shipChargedStr === null) return;
+
+        const shipCostStr = prompt("Enter actual shipping cost paid by you ($):", "0.00");
+        if (shipCostStr === null) return;
+
+        const salePrice = parseFloat(salePriceStr) || 0;
+        const shipCharged = parseFloat(shipChargedStr) || 0;
+        const shipCost = parseFloat(shipCostStr) || 0;
+
+        // Calculate Fee (eBay 13.25% or Facebook 0%)
+        const feeRate = item.platform === 'eBay' ? 0.1325 : 0.00;
+        const estimatedFee = (salePrice + shipCharged) * feeRate;
+
+        // Net Profit Calculation
+        const netProfit = (salePrice + shipCharged) - (item.item_cost + shipCost + estimatedFee);
+
         const { error } = await supabaseClient
             .from('curator_listings')
-            .update({ status: newStatus })
-            .eq('id', id);
+            .update({
+                status: 'Sold',
+                actual_sale_price: salePrice,
+                shipping_charged: shipCharged,
+                shipping_cost: shipCost,
+                net_profit: netProfit
+            })
+            .eq('id', item.id);
 
         if (error) {
-            console.error('Error updating status:', error);
+            console.error('Error marking as sold:', error);
             alert('Failed to update status.');
             return;
         }
@@ -240,7 +286,7 @@
         fetchListings();
     }
 
-    // 7. Delete Item from Database
+    // 7. Delete Item
     async function deleteItem(id, name) {
         if (!confirm(`Are you sure you want to delete "${name}"?`)) return;
 
@@ -258,7 +304,7 @@
         fetchListings();
     }
 
-    // 8. Render data into table
+    // 8. Render Table
     function renderTable(inventoryData) {
         const tbody = document.getElementById('inventoryBody');
         tbody.innerHTML = '';
@@ -267,18 +313,17 @@
 
         inventoryData.forEach((item) => {
             const row = document.createElement('tr');
-            
             const isSold = item.status === 'Sold';
-            if (isSold) {
-                row.classList.add('status-sold');
-            }
+
+            if (isSold) row.classList.add('status-sold');
 
             const listDate = new Date(item.date_listed);
             const today = new Date();
             const diffTime = Math.abs(today - listDate);
             const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) - 1; 
-            
             const daysClass = (!isSold && diffDays > 30) ? 'stale-listing' : '';
+
+            const itemJson = JSON.stringify(item).replace(/'/g, "&apos;");
 
             row.innerHTML = `
                 <td><strong>${item.status || 'Active'}</strong></td>
@@ -286,11 +331,13 @@
                 <td>${item.platform}</td>
                 <td>$${item.item_cost.toFixed(2)}</td>
                 <td>$${item.list_price.toFixed(2)}</td>
-                <td>$${item.target_margin.toFixed(2)}</td>
+                <td>${isSold ? '$' + (item.actual_sale_price || 0).toFixed(2) : '-'}</td>
+                <td>${isSold ? '$' + (item.shipping_charged || 0).toFixed(2) + ' / $' + (item.shipping_cost || 0).toFixed(2) : '-'}</td>
+                <td class="${isSold ? 'profit-text' : ''}">${isSold ? '$' + (item.net_profit || 0).toFixed(2) : '-'}</td>
                 <td>${item.date_listed}</td>
                 <td class="${daysClass}">${isSold ? '-' : diffDays + ' Days'}</td>
                 <td>
-                    <button class="action-btn btn-sold" onclick="toggleSold(${item.id}, '${item.status || 'Active'}')">
+                    <button class="action-btn btn-sold" onclick='toggleSold(${itemJson})'>
                         ${isSold ? 'Reactivate' : 'Mark Sold'}
                     </button>
                     <button class="action-btn btn-delete" onclick="deleteItem(${item.id}, '${item.item_name}')">Delete</button>
