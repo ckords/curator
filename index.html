@@ -155,7 +155,7 @@
             font-weight: bold;
         }
 
-        /* Desktop Table Styling */
+        /* Desktop Table Styling & Sort Headers */
         table {
             width: 100%;
             border-collapse: collapse;
@@ -169,7 +169,21 @@
         th {
             background-color: var(--primary);
             color: white;
+            user-select: none;
         }
+        th.sortable {
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        th.sortable:hover {
+            background-color: #34495e;
+        }
+        .sort-icon {
+            font-size: 11px;
+            margin-left: 4px;
+            opacity: 0.7;
+        }
+
         .stale-listing {
             color: var(--warning);
             font-weight: bold;
@@ -395,16 +409,16 @@
     <table>
         <thead>
             <tr>
-                <th>Status</th>
-                <th>Item Name</th>
-                <th>Platform</th>
-                <th>Cost</th>
-                <th>List Price</th>
-                <th>Actual Sale</th>
-                <th>Order Earnings</th>
-                <th>Net Profit</th>
-                <th>Date Listed</th>
-                <th>Days Active</th>
+                <th class="sortable" onclick="sortTable('status')">Status <span id="sort-status" class="sort-icon">↕</span></th>
+                <th class="sortable" onclick="sortTable('item_name')">Item Name <span id="sort-item_name" class="sort-icon">↕</span></th>
+                <th class="sortable" onclick="sortTable('platform')">Platform <span id="sort-platform" class="sort-icon">↕</span></th>
+                <th class="sortable" onclick="sortTable('item_cost')">Cost <span id="sort-item_cost" class="sort-icon">↕</span></th>
+                <th class="sortable" onclick="sortTable('list_price')">List Price <span id="sort-list_price" class="sort-icon">↕</span></th>
+                <th class="sortable" onclick="sortTable('actual_sale_price')">Actual Sale <span id="sort-actual_sale_price" class="sort-icon">↕</span></th>
+                <th class="sortable" onclick="sortTable('total_payout')">Order Earnings <span id="sort-total_payout" class="sort-icon">↕</span></th>
+                <th class="sortable" onclick="sortTable('net_profit')">Net Profit <span id="sort-net_profit" class="sort-icon">↕</span></th>
+                <th class="sortable" onclick="sortTable('date_listed')">Date Listed <span id="sort-date_listed" class="sort-icon">↕</span></th>
+                <th class="sortable" onclick="sortTable('days_active')">Days Active <span id="sort-days_active" class="sort-icon">↕</span></th>
                 <th>Actions</th>
             </tr>
         </thead>
@@ -505,6 +519,8 @@
 
 <script>
     let allInventoryData = [];
+    let currentSortColumn = null;
+    let currentSortDirection = 'asc'; // 'asc' or 'desc'
 
     // 1. Initialize Supabase Connection
     const supabaseUrl = 'https://qlygxviynzwpkjmxlvmo.supabase.co';
@@ -533,7 +549,7 @@
         filterTable();
     }
 
-    // 5. Update Top Summary Cards dynamically based on filtered view
+    // 5. Update Top Summary Cards
     function updateSummaryCards(data) {
         if (!data) return;
 
@@ -554,14 +570,35 @@
         document.getElementById('cardSoldCount').innerText = soldCount;
     }
 
-    // 6. Filter Table Data
+    // 6. Sort Handler
+    function sortTable(columnKey) {
+        if (currentSortColumn === columnKey) {
+            currentSortDirection = currentSortDirection === 'asc' ? 'desc' : 'asc';
+        } else {
+            currentSortColumn = columnKey;
+            currentSortDirection = 'asc';
+        }
+
+        // Reset all sort icon indicators
+        document.querySelectorAll('.sort-icon').forEach(icon => icon.innerText = '↕');
+
+        // Update active column icon
+        const activeIcon = document.getElementById(`sort-${columnKey}`);
+        if (activeIcon) {
+            activeIcon.innerText = currentSortDirection === 'asc' ? '↑' : '↓';
+        }
+
+        filterTable();
+    }
+
+    // 7. Filter & Sort Table Data
     function filterTable() {
         const query = document.getElementById('searchInput').value.toLowerCase().trim();
         const statusChoice = document.getElementById('statusFilter').value;
         const startDateStr = document.getElementById('startDate').value;
         const endDateStr = document.getElementById('endDate').value;
 
-        const filtered = allInventoryData.filter(item => {
+        let filtered = allInventoryData.filter(item => {
             const itemStatus = item.status || 'Active';
             const statusMatch = (statusChoice === 'All') || (itemStatus === statusChoice);
 
@@ -579,6 +616,29 @@
             return statusMatch && textMatch && dateMatch;
         });
 
+        // Apply Sorting if active
+        if (currentSortColumn) {
+            filtered.sort((a, b) => {
+                let valA, valB;
+
+                if (currentSortColumn === 'days_active') {
+                    const today = new Date();
+                    valA = a.status === 'Sold' ? -1 : Math.ceil(Math.abs(today - new Date(a.date_listed)) / (1000 * 60 * 60 * 24));
+                    valB = b.status === 'Sold' ? -1 : Math.ceil(Math.abs(today - new Date(b.date_listed)) / (1000 * 60 * 60 * 24));
+                } else {
+                    valA = a[currentSortColumn] ?? '';
+                    valB = b[currentSortColumn] ?? '';
+                }
+
+                if (typeof valA === 'string') valA = valA.toLowerCase();
+                if (typeof valB === 'string') valB = valB.toLowerCase();
+
+                if (valA < valB) return currentSortDirection === 'asc' ? -1 : 1;
+                if (valA > valB) return currentSortDirection === 'asc' ? 1 : -1;
+                return 0;
+            });
+        }
+
         renderTable(filtered);
         updateSummaryCards(filtered);
     }
@@ -588,10 +648,12 @@
         document.getElementById('statusFilter').value = 'All';
         document.getElementById('startDate').value = '';
         document.getElementById('endDate').value = '';
+        currentSortColumn = null;
+        document.querySelectorAll('.sort-icon').forEach(icon => icon.innerText = '↕');
         filterTable();
     }
 
-    // 7. Save new listing to Supabase
+    // 8. Save new listing to Supabase
     async function addListing() {
         const name = document.getElementById('itemName').value;
         const platform = document.getElementById('platform').value;
@@ -634,7 +696,7 @@
         fetchListings(); 
     }
 
-    // 8. Edit Modal Handling
+    // 9. Edit Modal Handling
     function openEditModal(item) {
         document.getElementById('editItemId').value = item.id;
         document.getElementById('editItemName').value = item.item_name || '';
@@ -700,7 +762,7 @@
         fetchListings();
     }
 
-    // 9. Handle Sold Modal Action (Quick Complete Sale)
+    // 10. Handle Sold Modal Action
     async function toggleSold(item) {
         if (item.status === 'Sold') {
             const { error } = await supabaseClient
@@ -761,7 +823,7 @@
         fetchListings();
     }
 
-    // 10. Delete Item
+    // 11. Delete Item
     async function deleteItem(id, name) {
         if (!confirm(`Are you sure you want to delete "${name}"?`)) return;
 
@@ -779,7 +841,7 @@
         fetchListings();
     }
 
-    // 11. Render Table / Cards
+    // 12. Render Table / Cards
     function renderTable(inventoryData) {
         const tbody = document.getElementById('inventoryBody');
         tbody.innerHTML = '';
