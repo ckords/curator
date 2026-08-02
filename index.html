@@ -105,6 +105,40 @@
         .card-margin .card-value { color: var(--margin); }
         .card-expenses .card-value { color: var(--expense); }
 
+        /* Platform Fee Averages Banner */
+        .platform-fee-banner {
+            background: #edf2f7;
+            border: 1px solid #cbd5e0;
+            border-radius: 6px;
+            padding: 12px 20px;
+            margin-bottom: 25px;
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+        .platform-fee-title {
+            font-size: 12px;
+            font-weight: bold;
+            color: var(--primary);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .platform-fee-pills {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+        .fee-pill {
+            background: white;
+            border: 1px solid #cbd5e0;
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: bold;
+            color: #2c3e50;
+        }
+
         /* Collapsible Chart Module */
         .chart-wrapper {
             background: #f8f9fa;
@@ -229,6 +263,7 @@
         .status-sold { background-color: #f8f9fa; color: var(--sold); }
         .profit-text { color: var(--profit); font-weight: bold; }
         .payout-text { color: var(--payout); font-weight: bold; }
+        .fee-text { color: var(--expense); font-weight: bold; }
         
         .action-btn {
             font-size: 11px;
@@ -429,6 +464,15 @@
         </div>
     </div>
 
+    <!-- Platform Fee Averages Banner -->
+    <div class="platform-fee-banner">
+        <span class="platform-fee-title">📊 Average Platform Fee Rates:</span>
+        <div class="platform-fee-pills" id="platformFeePills">
+            <span class="fee-pill">eBay: 0.0%</span>
+            <span class="fee-pill">Facebook: 0.0%</span>
+        </div>
+    </div>
+
     <!-- Collapsible Sales & Profit Chart Wrapper (Default Collapsed) -->
     <div class="chart-wrapper chart-collapsed" id="chartModule">
         <div class="chart-header" onclick="toggleChartModule()">
@@ -489,6 +533,7 @@
                 <th class="sortable" onclick="sortTable('list_price')">List Price <span id="sort-list_price" class="sort-icon">↕</span></th>
                 <th class="sortable" onclick="sortTable('actual_sale_price')">Actual Sale <span id="sort-actual_sale_price" class="sort-icon">↕</span></th>
                 <th class="sortable" onclick="sortTable('total_payout')">Order Earnings <span id="sort-total_payout" class="sort-icon">↕</span></th>
+                <th class="sortable" onclick="sortTable('fee_pct')">Fee % <span id="sort-fee_pct" class="sort-icon">↕</span></th>
                 <th class="sortable" onclick="sortTable('net_profit')">Net Profit <span id="sort-net_profit" class="sort-icon">↕</span></th>
                 <th class="sortable" onclick="sortTable('date_listed')">Date Listed <span id="sort-date_listed" class="sort-icon">↕</span></th>
                 <th class="sortable" onclick="sortTable('days_active')">Days Active <span id="sort-days_active" class="sort-icon">↕</span></th>
@@ -747,7 +792,7 @@
         updateSummaryCards(allInventoryData);
     }
 
-    // 5. Update Top Summary Cards
+    // 5. Update Top Summary Cards & Platform Fee Averages
     function updateSummaryCards(data) {
         if (!data) return;
 
@@ -756,21 +801,51 @@
         let soldCount = 0;
         let calculatedPlatformFees = 0;
 
+        // Platform-specific fee tracking dictionaries
+        const platformSales = {};
+        const platformFees = {};
+
         data.forEach(item => {
             if (item.status === 'Sold') {
                 const salePrice = item.actual_sale_price || 0;
                 const payout = item.total_payout || 0;
+                const platform = item.platform || 'eBay';
                 
                 totalRevenue += payout;
                 totalProfit += item.net_profit || 0;
                 soldCount++;
 
-                // Platform Fee = Actual Sale Price - Order Earnings (Payout)
-                if (salePrice > payout) {
-                    calculatedPlatformFees += (salePrice - payout);
+                const fee = salePrice > payout ? (salePrice - payout) : 0;
+                calculatedPlatformFees += fee;
+
+                if (!platformSales[platform]) {
+                    platformSales[platform] = 0;
+                    platformFees[platform] = 0;
                 }
+                platformSales[platform] += salePrice;
+                platformFees[platform] += fee;
             }
         });
+
+        // Calculate and render platform average fee pills
+        const pillsContainer = document.getElementById('platformFeePills');
+        pillsContainer.innerHTML = '';
+
+        const platforms = Object.keys(platformSales);
+        if (platforms.length === 0) {
+            pillsContainer.innerHTML = '<span class="fee-pill">eBay: 0.0%</span><span class="fee-pill">Facebook: 0.0%</span>';
+        } else {
+            platforms.forEach(p => {
+                const totalSales = platformSales[p];
+                const totalFee = platformFees[p];
+                const avgRate = totalSales > 0 ? (totalFee / totalSales) * 100 : 0;
+
+                const pill = document.createElement('span');
+                pill.className = 'fee-pill';
+                pill.innerText = `${p}: ${avgRate.toFixed(1)}% avg fee`;
+                pillsContainer.appendChild(pill);
+            });
+        }
 
         let totalManualExpenses = 0;
         allExpensesData.forEach(exp => {
@@ -778,7 +853,7 @@
         });
 
         const grandTotalOverhead = totalManualExpenses + calculatedPlatformFees;
-        const trueNet = totalProfit - totalManualExpenses; // Payout Net Profit minus manual overhead
+        const trueNet = totalProfit - totalManualExpenses;
         const profitMargin = totalRevenue > 0 ? (trueNet / totalRevenue) * 100 : 0;
 
         document.getElementById('cardRevenue').innerText = `$${totalRevenue.toFixed(2)}`;
@@ -848,7 +923,6 @@
         const tbody = document.getElementById('expensesBody');
         tbody.innerHTML = '';
 
-        // Add auto-calculated Platform Fees line item if present
         if (calculatedPlatformFees > 0) {
             const autoRow = document.createElement('tr');
             autoRow.style.background = '#fff8e7';
@@ -1154,6 +1228,11 @@
                     const today = new Date();
                     valA = a.status === 'Sold' ? -1 : Math.ceil(Math.abs(today - new Date(a.date_listed)) / (1000 * 60 * 60 * 24));
                     valB = b.status === 'Sold' ? -1 : Math.ceil(Math.abs(today - new Date(b.date_listed)) / (1000 * 60 * 60 * 24));
+                } else if (currentSortColumn === 'fee_pct') {
+                    const feeA = (a.status === 'Sold' && a.actual_sale_price > 0) ? ((a.actual_sale_price - a.total_payout) / a.actual_sale_price) : 0;
+                    const feeB = (b.status === 'Sold' && b.actual_sale_price > 0) ? ((b.actual_sale_price - b.total_payout) / b.actual_sale_price) : 0;
+                    valA = feeA;
+                    valB = feeB;
                 } else {
                     valA = a[currentSortColumn] ?? '';
                     valB = b[currentSortColumn] ?? '';
@@ -1376,7 +1455,7 @@
         tbody.innerHTML = '';
 
         if (!inventoryData || inventoryData.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="11" style="text-align:center; color:#7f8c8d;">No matching inventory items found.</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="12" style="text-align:center; color:#7f8c8d;">No matching inventory items found.</td></tr>';
             return;
         }
 
@@ -1385,6 +1464,10 @@
             const isSold = item.status === 'Sold';
 
             if (isSold) row.classList.add('status-sold');
+
+            const salePrice = item.actual_sale_price || 0;
+            const payout = item.total_payout || 0;
+            const feePct = (isSold && salePrice > 0) ? (((salePrice - payout) / salePrice) * 100) : 0;
 
             const listDate = new Date(item.date_listed);
             const today = new Date();
@@ -1400,8 +1483,9 @@
                 <td data-label="Platform">${item.platform}</td>
                 <td data-label="Cost">$${item.item_cost.toFixed(2)}</td>
                 <td data-label="List Price">$${item.list_price.toFixed(2)}</td>
-                <td data-label="Actual Sale">${isSold ? '$' + (item.actual_sale_price || 0).toFixed(2) : '-'}</td>
-                <td data-label="Order Earnings" class="${isSold ? 'payout-text' : ''}">${isSold ? '$' + (item.total_payout || 0).toFixed(2) : '-'}</td>
+                <td data-label="Actual Sale">${isSold ? '$' + salePrice.toFixed(2) : '-'}</td>
+                <td data-label="Order Earnings" class="${isSold ? 'payout-text' : ''}">${isSold ? '$' + payout.toFixed(2) : '-'}</td>
+                <td data-label="Fee %" class="${isSold ? 'fee-text' : ''}">${isSold ? feePct.toFixed(1) + '%' : '-'}</td>
                 <td data-label="Net Profit" class="${isSold ? 'profit-text' : ''}">${isSold ? '$' + (item.net_profit || 0).toFixed(2) : '-'}</td>
                 <td data-label="Date Listed">${item.date_listed}</td>
                 <td data-label="Days Active" class="${daysClass}">${isSold ? '-' : diffDays + ' Days'}</td>
