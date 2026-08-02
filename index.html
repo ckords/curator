@@ -23,6 +23,7 @@
             --comp: #f39c12;
             --ai-info: #8e44ad;
             --expense: #c0392b;
+            --drop: #e67e22;
         }
         body {
             font-family: 'Inter', sans-serif; 
@@ -266,6 +267,11 @@
         .sort-icon { font-size: 11px; margin-left: 4px; opacity: 0.7; }
 
         .stale-listing { color: var(--warning); font-weight: bold; }
+        .drop-counter {
+            color: var(--drop);
+            font-weight: bold;
+            font-size: 12px;
+        }
         .status-sold { background-color: #f8f9fa; color: var(--sold); }
         .profit-text { color: var(--profit); font-weight: bold; }
         .payout-text { color: var(--payout); font-weight: bold; }
@@ -606,7 +612,8 @@
                         <th class="sortable" onclick="sortTable('item_cost')">Cost <span id="sort-active-item_cost" class="sort-icon">↕</span></th>
                         <th class="sortable" onclick="sortTable('list_price')">List Price <span id="sort-active-list_price" class="sort-icon">↕</span></th>
                         <th class="sortable" onclick="sortTable('date_listed')">Date Listed <span id="sort-active-date_listed" class="sort-icon">↕</span></th>
-                        <th class="sortable" onclick="sortTable('days_active')">Days Active <span id="sort-active-days_active" class="sort-icon">↕</span></th>
+                        <th class="sortable" onclick="sortTable('days_active')">Total Days <span id="sort-active-days_active" class="sort-icon">↕</span></th>
+                        <th class="sortable" onclick="sortTable('days_since_drop')">Days Since Drop <span id="sort-active-days_since_drop" class="sort-icon">↕</span></th>
                         <th>Actions</th>
                     </tr>
                 </thead>
@@ -805,6 +812,7 @@
         <h2>Edit Listing</h2>
         
         <input type="hidden" id="editItemId">
+        <input type="hidden" id="editOldPrice">
 
         <div class="modal-group">
             <label for="editItemName">Item Name</label>
@@ -1343,7 +1351,6 @@
 
         document.querySelectorAll('.sort-icon').forEach(icon => icon.innerText = '↕');
 
-        // Update indicators on both active and sold tables
         ['active', 'sold'].forEach(prefix => {
             const activeIcon = document.getElementById(`sort-${prefix}-${columnKey}`);
             if (activeIcon) {
@@ -1387,6 +1394,10 @@
                     const today = new Date();
                     valA = a.status === 'Sold' ? -1 : Math.ceil(Math.abs(today - new Date(a.date_listed)) / (1000 * 60 * 60 * 24));
                     valB = b.status === 'Sold' ? -1 : Math.ceil(Math.abs(today - new Date(b.date_listed)) / (1000 * 60 * 60 * 24));
+                } else if (currentSortColumn === 'days_since_drop') {
+                    const today = new Date();
+                    valA = Math.ceil(Math.abs(today - new Date(a.last_price_drop || a.date_listed)) / (1000 * 60 * 60 * 24));
+                    valB = Math.ceil(Math.abs(today - new Date(b.last_price_drop || b.date_listed)) / (1000 * 60 * 60 * 24));
                 } else if (currentSortColumn === 'fee_pct') {
                     const feeA = (a.status === 'Sold' && a.actual_sale_price > 0) ? ((a.actual_sale_price - a.total_payout) / a.actual_sale_price) : 0;
                     const feeB = (b.status === 'Sold' && b.actual_sale_price > 0) ? ((b.actual_sale_price - b.total_payout) / b.actual_sale_price) : 0;
@@ -1434,6 +1445,7 @@
         }
 
         const margin = price - cost;
+        const nowIso = new Date().toISOString();
 
         const payload = {
             item_name: name,
@@ -1441,6 +1453,7 @@
             item_cost: cost,
             list_price: price,
             date_listed: dateStr,
+            last_price_drop: nowIso,
             target_margin: margin,
             calculated_baseline: price,
             status: 'Active'
@@ -1466,6 +1479,7 @@
     // 13. Edit Modal Handling
     function openEditModal(item) {
         document.getElementById('editItemId').value = item.id;
+        document.getElementById('editOldPrice').value = item.list_price || 0;
         document.getElementById('editItemName').value = item.item_name || '';
         document.getElementById('editPlatform').value = item.platform || 'eBay';
         document.getElementById('editItemCost').value = item.item_cost || 0;
@@ -1484,6 +1498,7 @@
 
     async function saveEditModal() {
         const id = document.getElementById('editItemId').value;
+        const oldPrice = parseFloat(document.getElementById('editOldPrice').value) || 0;
         const itemName = document.getElementById('editItemName').value.trim();
         const platform = document.getElementById('editPlatform').value;
         const cost = parseFloat(document.getElementById('editItemCost').value) || 0;
@@ -1500,6 +1515,7 @@
 
         const targetMargin = listPrice - cost;
         const netProfit = status === 'Sold' ? totalPayout - cost : 0;
+        const nowIso = new Date().toISOString();
 
         const updatePayload = {
             item_name: itemName,
@@ -1513,6 +1529,18 @@
             target_margin: targetMargin,
             date_listed: dateListed
         };
+
+        // Price Drop Event Logging
+        if (listPrice < oldPrice) {
+            updatePayload.last_price_drop = nowIso;
+            
+            await supabaseClient.from('curator_price_drops').insert([{
+                listing_id: id,
+                previous_price: oldPrice,
+                new_price: listPrice,
+                date_dropped: nowIso
+            }]);
+        }
 
         const { error } = await supabaseClient
             .from('curator_listings')
@@ -1624,15 +1652,21 @@
 
         // Render Active Listings Table
         if (activeItems.length === 0) {
-            activeTbody.innerHTML = '<tr><td colspan="7" style="text-align:center; color:#7f8c8d;">No active items found.</td></tr>';
+            activeTbody.innerHTML = '<tr><td colspan="8" style="text-align:center; color:#7f8c8d;">No active items found.</td></tr>';
         } else {
             activeItems.forEach(item => {
                 const row = document.createElement('tr');
                 const listDate = new Date(item.date_listed);
                 const today = new Date();
+                
                 const diffTime = Math.abs(today - listDate);
                 const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) - 1; 
                 const daysClass = diffDays > 30 ? 'stale-listing' : '';
+
+                // Calculate Days Since Price Drop
+                const dropDate = item.last_price_drop ? new Date(item.last_price_drop) : listDate;
+                const dropTime = Math.abs(today - dropDate);
+                const dropDays = Math.ceil(dropTime / (1000 * 60 * 60 * 24)) - 1;
 
                 const itemJson = JSON.stringify(item).replace(/'/g, "&apos;");
 
@@ -1642,7 +1676,8 @@
                     <td data-label="Cost">$${item.item_cost.toFixed(2)}</td>
                     <td data-label="List Price">$${item.list_price.toFixed(2)}</td>
                     <td data-label="Date Listed">${item.date_listed}</td>
-                    <td data-label="Days Active" class="${daysClass}">${diffDays} Days</td>
+                    <td data-label="Total Days" class="${daysClass}">${diffDays} Days</td>
+                    <td data-label="Days Since Drop" class="drop-counter">⚡ ${dropDays} Days</td>
                     <td data-label="Actions">
                         <button class="action-btn btn-ai-trigger" onclick='openAiInfoModal("${item.item_name}")'>AI Info</button>
                         <button class="action-btn btn-comp-trigger" onclick='openCompModal("${item.item_name}")'>Comps</button>
