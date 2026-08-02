@@ -215,8 +215,6 @@
             transition: background 0.3s;
         }
         button:hover { background-color: #128f76; }
-        .btn-comp-trigger { background-color: var(--comp); }
-        .btn-comp-trigger:hover { background-color: #d68910; }
         .btn-ai-trigger { background-color: var(--ai-info); }
         .btn-ai-trigger:hover { background-color: #763e9b; }
 
@@ -321,6 +319,9 @@
             max-height: 90vh;
             overflow-y: auto;
         }
+        .modal-content.wide-modal {
+            max-width: 650px;
+        }
         .modal-content h2 {
             margin-top: 0;
             color: var(--primary);
@@ -380,7 +381,7 @@
         }
         .history-item:last-child { border-bottom: none; }
 
-        /* Comp & Valuation Box */
+        /* Unified Analysis Box Styles */
         .dropzone {
             border: 2px dashed #3498db;
             padding: 20px;
@@ -399,7 +400,7 @@
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
             gap: 10px;
-            margin-top: 15px;
+            margin-bottom: 15px;
         }
         .comp-link-btn {
             display: inline-block;
@@ -424,7 +425,7 @@
             border: 1px solid #e0e0e0;
             border-radius: 6px;
             padding: 15px;
-            margin-top: 20px;
+            margin-bottom: 15px;
         }
         .valuation-header {
             font-size: 12px;
@@ -488,7 +489,7 @@
             font-size: 13px;
             line-height: 1.5;
             color: #333;
-            margin-top: 15px;
+            margin-bottom: 15px;
         }
 
         /* MOBILE RESPONSIVE CARD VIEW */
@@ -585,7 +586,7 @@
         </div>
     </div>
 
-    <!-- Collapsible Sales & Profit Chart Wrapper (Default Collapsed) -->
+    <!-- Collapsible Sales & Profit Chart Wrapper -->
     <div class="collapsible-wrapper is-collapsed" id="chartModule">
         <div class="collapsible-header header-chart" onclick="toggleSection('chartModule')">
             <span class="collapsible-title">📊 Revenue & Profit Analytics Chart</span>
@@ -609,8 +610,7 @@
         <input type="number" id="listPrice" placeholder="List Price ($)" step="0.01" required>
         <input type="date" id="dateListed" required>
         <button onclick="addListing()">Add Item</button>
-        <button class="btn-comp-trigger" onclick="openCompModal()">🔍 Comps</button>
-        <button class="btn-ai-trigger" onclick="openAiInfoModal()">✨ AI Info</button>
+        <button class="btn-ai-trigger" onclick="openAnalysisModal()">✨ Analyze Item</button>
     </div>
 
     <!-- Inventory Search & Filter Controls -->
@@ -727,53 +727,20 @@
     </table>
 </div>
 
-<!-- Modal Pop-Up for AI Info & Google Lens Search -->
-<div class="modal-overlay" id="aiInfoModal">
-    <div class="modal-content">
-        <h2>✨ AI Item Info & Lens Search</h2>
+<!-- SINGLE UNIFIED MODAL FOR AI ANALYSIS & COMPS -->
+<div class="modal-overlay" id="analysisModal">
+    <div class="modal-content wide-modal">
+        <h2>✨ AI Identification & Market Valuation</h2>
         
-        <div class="dropzone" onclick="document.getElementById('aiFileInput').click()">
-            <div id="aiDropzoneText">📸 Click or Drop Photo for Visual Identification</div>
-            <input type="file" id="aiFileInput" accept="image/*" style="display:none;" onchange="handleAiImageUpload(event)">
-            <img id="aiImagePreview" src="" alt="Preview" style="display:none;">
+        <div class="dropzone" onclick="document.getElementById('analysisFileInput').click()">
+            <div id="analysisDropzoneText">📸 Click or Drop Photo to Analyze</div>
+            <input type="file" id="analysisFileInput" accept="image/*" style="display:none;" onchange="handleAnalysisImageUpload(event)">
+            <img id="analysisImagePreview" src="" alt="Preview" style="display:none;">
         </div>
 
         <div class="modal-group">
-            <label for="aiQuery">Item Title / Subject Name</label>
-            <input type="text" id="aiQuery" placeholder="e.g. Nintendo GameCube Console Black">
-        </div>
-
-        <div style="display:flex; gap:10px; margin-bottom:15px;">
-            <button onclick="generateAiDetails()" style="flex:1;">Generate Details</button>
-            <a id="linkLens" href="#" target="_blank" class="comp-link-btn btn-lens" style="flex:1; margin:0;">Open Google Lens</a>
-        </div>
-
-        <div id="aiResultsBox" class="ai-results-box" style="display:none;">
-            <strong>AI Identification & Insights:</strong>
-            <div id="aiResultsText" style="margin-top:8px;"></div>
-        </div>
-
-        <div class="modal-actions">
-            <button class="btn-cancel" onclick="closeAiInfoModal()">Close</button>
-            <button onclick="applyAiInfoToForm()">Apply Title to Form</button>
-        </div>
-    </div>
-</div>
-
-<!-- Modal Pop-Up for Item Comp Finder & Valuation Range -->
-<div class="modal-overlay" id="compModal">
-    <div class="modal-content">
-        <h2>🔍 Item Comp & Valuation Finder</h2>
-        
-        <div class="dropzone" onclick="document.getElementById('compFileInput').click()">
-            <div id="dropzoneText">📸 Click or Drop Photo Here to Analyze</div>
-            <input type="file" id="compFileInput" accept="image/*" style="display:none;" onchange="handleImageUpload(event)">
-            <img id="compImagePreview" src="" alt="Preview" style="display:none;">
-        </div>
-
-        <div class="modal-group">
-            <label for="compQuery">Search Keywords / Item Title</label>
-            <input type="text" id="compQuery" placeholder="e.g. Mario Party 4 GameCube" oninput="calculateValuationRange(); generateCompLinks();">
+            <label for="analysisQuery">Item Title / Search Keywords</label>
+            <input type="text" id="analysisQuery" placeholder="e.g. Mario Party 4 GameCube" oninput="calculateValuationRange(); generateCompLinks(); updateLensLink();">
         </div>
 
         <!-- Condition & Completeness Filters -->
@@ -797,13 +764,26 @@
             </div>
         </div>
 
+        <!-- AI & Search Action Buttons -->
+        <div style="display:flex; gap:10px; margin-bottom:15px;">
+            <button onclick="generateAiDetails()" style="flex:1;">✨ Generate AI Insights</button>
+            <a id="linkLens" href="#" target="_blank" class="comp-link-btn btn-lens" style="flex:1; margin:0; display:flex; align-items:center; justify-content:center;">Open Google Lens</a>
+        </div>
+
+        <!-- AI Results Box -->
+        <div id="aiResultsBox" class="ai-results-box" style="display:none;">
+            <strong>AI Identification & Insights:</strong>
+            <div id="aiResultsText" style="margin-top:8px;"></div>
+        </div>
+
+        <!-- Comp Outbound Links -->
         <div class="comp-links-grid">
             <a id="linkEbay" href="#" target="_blank" class="comp-link-btn btn-ebay">eBay Sold Listings</a>
             <a id="linkFB" href="#" target="_blank" class="comp-link-btn btn-fb">Facebook Market</a>
             <a id="linkGoogle" href="#" target="_blank" class="comp-link-btn btn-google">Google Shopping</a>
         </div>
 
-        <!-- Valuation Range & Price Recommendation Engine -->
+        <!-- Valuation Range Engine -->
         <div class="valuation-box">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
                 <div class="valuation-header" style="margin-bottom:0;">📊 Estimated Market Value Range</div>
@@ -838,8 +818,8 @@
         </div>
 
         <div class="modal-actions">
-            <button class="btn-cancel" onclick="closeCompModal()">Close</button>
-            <button onclick="applyCompToForm()">Apply Recommended Price</button>
+            <button class="btn-cancel" onclick="closeAnalysisModal()">Close</button>
+            <button onclick="applyAnalysisToForm()">Apply to Form</button>
         </div>
     </div>
 </div>
@@ -1255,30 +1235,34 @@
         });
     }
 
-    // 8. Real-time Gemini API Visual Recognition Logic
-    // IMPORTANT: Replace 'YOUR_GEMINI_API_KEY' with your key from https://aistudio.google.com/
+    // 8. UNIFIED AI & COMPS ANALYSIS MODAL
     const GEMINI_API_KEY = 'AQ.Ab8RN6KXPfLshk-aQ3_PBDJmkG4oHzbp0i7EZvw3GC15GC_15g'; 
     let uploadedImageBase64 = null;
     let uploadedImageMimeType = null;
 
-    function openAiInfoModal(itemName = '') {
-        const queryInput = document.getElementById('aiQuery');
+    function openAnalysisModal(itemName = '') {
+        const queryInput = document.getElementById('analysisQuery');
         queryInput.value = itemName || document.getElementById('itemName').value || '';
-        document.getElementById('aiImagePreview').style.display = 'none';
-        document.getElementById('aiDropzoneText').style.display = 'block';
+        
+        document.getElementById('analysisImagePreview').style.display = 'none';
+        document.getElementById('analysisDropzoneText').style.display = 'block';
         document.getElementById('aiResultsBox').style.display = 'none';
+        
         uploadedImageBase64 = null;
         uploadedImageMimeType = null;
         
+        calculateValuationRange();
+        generateCompLinks();
         updateLensLink();
-        document.getElementById('aiInfoModal').style.display = 'flex';
+        
+        document.getElementById('analysisModal').style.display = 'flex';
     }
 
-    function closeAiInfoModal() {
-        document.getElementById('aiInfoModal').style.display = 'none';
+    function closeAnalysisModal() {
+        document.getElementById('analysisModal').style.display = 'none';
     }
 
-    function handleAiImageUpload(event) {
+    function handleAnalysisImageUpload(event) {
         const file = event.target.files[0];
         if (!file) return;
 
@@ -1286,25 +1270,36 @@
 
         const reader = new FileReader();
         reader.onload = function(e) {
-            const preview = document.getElementById('aiImagePreview');
+            const preview = document.getElementById('analysisImagePreview');
             preview.src = e.target.result;
             preview.style.display = 'inline-block';
-            document.getElementById('aiDropzoneText').style.display = 'none';
+            document.getElementById('analysisDropzoneText').style.display = 'none';
 
             uploadedImageBase64 = e.target.result.split(',')[1];
+            
+            const rawName = file.name.replace(/\.[^/.]+$/, "").replace(/[-_]/g, " ");
+            const currentQuery = document.getElementById('analysisQuery').value;
+            if (!currentQuery) {
+                document.getElementById('analysisQuery').value = rawName;
+                calculateValuationRange();
+                generateCompLinks();
+                updateLensLink();
+            }
+            
+            // Automatically trigger vision identification upon upload
             generateAiDetails();
         };
         reader.readAsDataURL(file);
     }
 
     function updateLensLink() {
-        const query = document.getElementById('aiQuery').value.trim();
+        const query = document.getElementById('analysisQuery').value.trim();
         const encoded = encodeURIComponent(query);
         document.getElementById('linkLens').href = `https://www.google.com/search?q=${encoded}&tbm=isch`;
     }
 
     async function generateAiDetails() {
-        const query = document.getElementById('aiQuery').value.trim();
+        const query = document.getElementById('analysisQuery').value.trim();
         const box = document.getElementById('aiResultsBox');
         const text = document.getElementById('aiResultsText');
 
@@ -1314,7 +1309,7 @@
         }
 
         box.style.display = 'block';
-        text.innerHTML = '⏳ <em>Analyzing image with Gemini Vision AI...</em>';
+        text.innerHTML = '⏳ <em>Analyzing item with Gemini Vision AI...</em>';
 
         try {
             const genAI = new window.GoogleGenerativeAI(GEMINI_API_KEY);
@@ -1348,64 +1343,23 @@ Return concise HTML bullet points covering:
 
             text.innerHTML = responseText.replace(/\n/g, '<br>');
 
+            // If a cleaner title is detected, auto-update the search input and recalculate comps
             const firstLine = responseText.split('\n')[0].replace(/[*#]/g, '').trim();
             if (firstLine && !query) {
-                document.getElementById('aiQuery').value = firstLine;
+                document.getElementById('analysisQuery').value = firstLine;
                 updateLensLink();
+                calculateValuationRange();
+                generateCompLinks();
             }
 
         } catch (error) {
             console.error('Gemini API Error:', error);
-            text.innerHTML = `<span style="color:var(--expense);">Error analyzing item: ${error.message}</span>`;
+            text.innerHTML = `<span style="color:var(--expense);">Error analyzing item: ${error.message}<br><br><b>Note:</b> Make sure your GEMINI_API_KEY in the code is valid.</span>`;
         }
     }
 
-    function applyAiInfoToForm() {
-        const query = document.getElementById('aiQuery').value.trim();
-        if (query) document.getElementById('itemName').value = query;
-        closeAiInfoModal();
-    }
-
-    // 9. Enhanced Comp Finder & Valuation Engine
-    function openCompModal(itemName = '') {
-        const queryInput = document.getElementById('compQuery');
-        queryInput.value = itemName || document.getElementById('itemName').value || '';
-        document.getElementById('compImagePreview').style.display = 'none';
-        document.getElementById('dropzoneText').style.display = 'block';
-        
-        calculateValuationRange();
-        generateCompLinks();
-        document.getElementById('compModal').style.display = 'flex';
-    }
-
-    function closeCompModal() {
-        document.getElementById('compModal').style.display = 'none';
-    }
-
-    function handleImageUpload(event) {
-        const file = event.target.files[0];
-        if (!file) return;
-
-        const reader = new FileReader();
-        reader.onload = function(e) {
-            const preview = document.getElementById('compImagePreview');
-            preview.src = e.target.result;
-            preview.style.display = 'inline-block';
-            document.getElementById('dropzoneText').style.display = 'none';
-
-            const rawName = file.name.replace(/\.[^/.]+$/, "").replace(/[-_]/g, " ");
-            const currentQuery = document.getElementById('compQuery').value;
-            if (!currentQuery) {
-                document.getElementById('compQuery').value = rawName;
-                calculateValuationRange();
-                generateCompLinks();
-            }
-        };
-        reader.readAsDataURL(file);
-    }
-
     function calculateValuationRange() {
-        const query = document.getElementById('compQuery').value.trim();
+        const query = document.getElementById('analysisQuery').value.trim();
         const completeness = document.getElementById('compCompleteness')?.value || 'cib';
         const condition = document.getElementById('compCondition')?.value || 'good';
         
@@ -1449,7 +1403,7 @@ Return concise HTML bullet points covering:
     }
 
     function generateCompLinks() {
-        const query = document.getElementById('compQuery').value.trim();
+        const query = document.getElementById('analysisQuery').value.trim();
         const encoded = encodeURIComponent(query);
 
         const ebayUrl = `https://www.ebay.com/sch/i.html?_nkw=${encoded}&LH_Sold=1&LH_Complete=1`;
@@ -1467,15 +1421,15 @@ Return concise HTML bullet points covering:
         if (type === 'mid') chosenPrice = calculatedCompPrices.mid;
         if (type === 'high') chosenPrice = calculatedCompPrices.high;
 
-        const query = document.getElementById('compQuery').value.trim();
-        if (query) document.getElementById('itemName').value = query;
         document.getElementById('listPrice').value = chosenPrice.toFixed(2);
-
-        closeCompModal();
     }
 
-    function applyCompToForm() {
+    function applyAnalysisToForm() {
+        const query = document.getElementById('analysisQuery').value.trim();
+        if (query) document.getElementById('itemName').value = query;
+        
         applySpecificPrice('rec');
+        closeAnalysisModal();
     }
 
     // 10. Sort Handler
@@ -1847,11 +1801,10 @@ Return concise HTML bullet points covering:
                     <td data-label="Date Reduced">${dropDateStr}</td>
                     <td data-label="Days Since Drop" class="drop-counter">⚡ ${dropDays} Days</td>
                     <td data-label="Actions">
-                        <button class="action-btn btn-ai-trigger" onclick='openAiInfoModal("${item.item_name}")'>AI Info</button>
-                        <button class="action-btn btn-comp-trigger" onclick='openCompModal("${item.item_name}")'>Comps</button>
+                        <button class="action-btn btn-ai-trigger" onclick='openAnalysisModal("${item.item_name.replace(/"/g, '&quot;')}")'>Analyze</button>
                         <button class="action-btn btn-edit" onclick='openEditModal(${itemJson})'>Edit</button>
                         <button class="action-btn btn-sold" onclick='toggleSold(${itemJson})'>Mark Sold</button>
-                        <button class="action-btn btn-delete" onclick="deleteItem(${item.id}, '${item.item_name}')">Delete</button>
+                        <button class="action-btn btn-delete" onclick="deleteItem(${item.id}, '${item.item_name.replace(/"/g, '&quot;')}')">Delete</button>
                     </td>
                 `;
                 activeTbody.appendChild(row);
@@ -1883,11 +1836,10 @@ Return concise HTML bullet points covering:
                     <td data-label="Net Profit" class="profit-text">$${(item.net_profit || 0).toFixed(2)}</td>
                     <td data-label="Date Listed">${item.date_listed}</td>
                     <td data-label="Actions">
-                        <button class="action-btn btn-ai-trigger" onclick='openAiInfoModal("${item.item_name}")'>AI Info</button>
-                        <button class="action-btn btn-comp-trigger" onclick='openCompModal("${item.item_name}")'>Comps</button>
+                        <button class="action-btn btn-ai-trigger" onclick='openAnalysisModal("${item.item_name.replace(/"/g, '&quot;')}")'>Analyze</button>
                         <button class="action-btn btn-edit" onclick='openEditModal(${itemJson})'>Edit</button>
                         <button class="action-btn btn-sold" onclick='toggleSold(${itemJson})'>Reactivate</button>
-                        <button class="action-btn btn-delete" onclick="deleteItem(${item.id}, '${item.item_name}')">Delete</button>
+                        <button class="action-btn btn-delete" onclick="deleteItem(${item.id}, '${item.item_name.replace(/"/g, '&quot;')}')">Delete</button>
                     </td>
                 `;
                 soldTbody.appendChild(row);
