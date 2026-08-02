@@ -9,6 +9,12 @@
     <!-- Chart.js Library via CDN -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     
+    <!-- Google Gen AI JS SDK via CDN -->
+    <script type="module">
+      import { GoogleGenerativeAI } from "https://esm.run/@google/generative-ai";
+      window.GoogleGenerativeAI = GoogleGenerativeAI;
+    </script>
+    
     <style>
         :root {
             --primary: #2c3e50;
@@ -1225,13 +1231,19 @@
         });
     }
 
-    // 8. AI Info & Lens Search Logic
+    // 8. Real-time Gemini API Visual Recognition Logic
+    const GEMINI_API_KEY = 'AQ.Ab8RN6KXPfLshk-aQ3_PBDJmkG4oHzbp0i7EZvw3GC15GC_15g'; 
+    let uploadedImageBase64 = null;
+    let uploadedImageMimeType = null;
+
     function openAiInfoModal(itemName = '') {
         const queryInput = document.getElementById('aiQuery');
         queryInput.value = itemName || document.getElementById('itemName').value || '';
         document.getElementById('aiImagePreview').style.display = 'none';
         document.getElementById('aiDropzoneText').style.display = 'block';
         document.getElementById('aiResultsBox').style.display = 'none';
+        uploadedImageBase64 = null;
+        uploadedImageMimeType = null;
         
         updateLensLink();
         document.getElementById('aiInfoModal').style.display = 'flex';
@@ -1245,6 +1257,8 @@
         const file = event.target.files[0];
         if (!file) return;
 
+        uploadedImageMimeType = file.type;
+
         const reader = new FileReader();
         reader.onload = function(e) {
             const preview = document.getElementById('aiImagePreview');
@@ -1252,12 +1266,8 @@
             preview.style.display = 'inline-block';
             document.getElementById('aiDropzoneText').style.display = 'none';
 
-            const rawName = file.name.replace(/\.[^/.]+$/, "").replace(/[-_]/g, " ");
-            const currentQuery = document.getElementById('aiQuery').value;
-            if (!currentQuery) {
-                document.getElementById('aiQuery').value = rawName;
-                updateLensLink();
-            }
+            uploadedImageBase64 = e.target.result.split(',')[1];
+            generateAiDetails();
         };
         reader.readAsDataURL(file);
     }
@@ -1268,25 +1278,61 @@
         document.getElementById('linkLens').href = `https://www.google.com/search?q=${encoded}&tbm=isch`;
     }
 
-    function generateAiDetails() {
+    async function generateAiDetails() {
         const query = document.getElementById('aiQuery').value.trim();
-        if (!query) {
-            alert('Please enter an item name or upload an image.');
-            return;
-        }
-
         const box = document.getElementById('aiResultsBox');
         const text = document.getElementById('aiResultsText');
 
-        box.style.display = 'block';
-        text.innerHTML = `
-            • <strong>Suggested Category:</strong> Consumer Goods / Electronics / Collectibles<br>
-            • <strong>Keywords:</strong> ${query.replace(/ /g, ', ')}<br>
-            • <strong>Condition Checks:</strong> Test functions, inspect cosmetics, verify model numbers.<br>
-            • <strong>Listing Tip:</strong> Include crisp photos, serial numbers, and exact physical condition notes.
-        `;
+        if (!uploadedImageBase64 && !query) {
+            alert('Please upload an image or enter an item title to analyze.');
+            return;
+        }
 
-        updateLensLink();
+        box.style.display = 'block';
+        text.innerHTML = '⏳ <em>Analyzing image with Gemini Vision AI...</em>';
+
+        try {
+            const genAI = new window.GoogleGenerativeAI(GEMINI_API_KEY);
+            const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+
+            const prompt = `Analyze this reselling inventory item image/title. 
+Return concise HTML bullet points covering:
+1. **Identified Title/Brand/Model**
+2. **Suggested Category**
+3. **5 Key Search Keywords**
+4. **Condition Inspection Tips**
+5. **Listing Description Highlight**`;
+
+            let contents = [prompt];
+
+            if (uploadedImageBase64) {
+                contents.push({
+                    inlineData: {
+                        data: uploadedImageBase64,
+                        mimeType: uploadedImageMimeType || "image/jpeg"
+                    }
+                });
+            }
+
+            if (query) {
+                contents.push(`Item context: ${query}`);
+            }
+
+            const result = await model.generateContent(contents);
+            const responseText = await result.response.text();
+
+            text.innerHTML = responseText.replace(/\n/g, '<br>');
+
+            const firstLine = responseText.split('\n')[0].replace(/[*#]/g, '').trim();
+            if (firstLine && !query) {
+                document.getElementById('aiQuery').value = firstLine;
+                updateLensLink();
+            }
+
+        } catch (error) {
+            console.error('Gemini API Error:', error);
+            text.innerHTML = `<span style="color:var(--expense);">Error analyzing item: ${error.message}</span>`;
+        }
     }
 
     function applyAiInfoToForm() {
@@ -1442,7 +1488,6 @@
                     valA = a.status === 'Sold' ? -1 : Math.ceil(Math.abs(today - new Date(a.date_listed)) / (1000 * 60 * 60 * 24));
                     valB = b.status === 'Sold' ? -1 : Math.ceil(Math.abs(today - new Date(b.date_listed)) / (1000 * 60 * 60 * 24));
                 } else if (currentSortColumn === 'days_since_drop' || currentSortColumn === 'last_price_drop') {
-                    const today = new Date();
                     valA = new Date(a.last_price_drop || a.date_listed);
                     valB = new Date(b.last_price_drop || b.date_listed);
                 } else if (currentSortColumn === 'fee_pct') {
@@ -1535,14 +1580,11 @@
         document.getElementById('editActualSale').value = item.actual_sale_price || 0;
         document.getElementById('editTotalPayout').value = item.total_payout || 0;
         
-        // Date Listed remains locked to preserve original listing date
         document.getElementById('editDateListed').value = item.date_listed || '';
 
-        // Default Date Price Reduced input to last recorded drop or today
         const dropDateIso = item.last_price_drop ? item.last_price_drop.substring(0, 10) : new Date().toISOString().substring(0, 10);
         document.getElementById('editDatePriceReduced').value = dropDateIso;
 
-        // Load price drop audit history for this listing
         const historyList = document.getElementById('editPriceHistoryList');
         historyList.innerHTML = '<li style="color:#7f8c8d;">Loading history...</li>';
 
@@ -1596,8 +1638,6 @@
 
         const targetMargin = listPrice - cost;
         const netProfit = status === 'Sold' ? totalPayout - cost : 0;
-        
-        // Convert custom reduction date to ISO string
         const dropTimestamp = customDropDate ? new Date(customDropDate).toISOString() : new Date().toISOString();
 
         const updatePayload = {
@@ -1613,7 +1653,6 @@
             date_listed: dateListed
         };
 
-        // Automatic Price Drop Event Logging & Counter Reset Trigger
         if (listPrice < oldPrice) {
             updatePayload.last_price_drop = dropTimestamp;
             
@@ -1746,7 +1785,6 @@
                 const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) - 1; 
                 const daysClass = diffDays > 30 ? 'stale-listing' : '';
 
-                // Calculate Days Since Price Drop & Date Reduced string
                 const dropDate = item.last_price_drop ? new Date(item.last_price_drop) : listDate;
                 const dropDateStr = item.last_price_drop ? item.last_price_drop.substring(0, 10) : item.date_listed;
                 const dropTime = Math.abs(today - dropDate);
