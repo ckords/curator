@@ -62,16 +62,27 @@
             padding: 15px 20px;
             border-radius: 6px;
             box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            transition: transform 0.2s, box-shadow 0.2s;
         }
         .card.card-payout { border-left-color: var(--payout); }
         .card.card-profit { border-left-color: var(--profit); }
-        .card.card-margin { border-left-color: var(--margin); }
+        .card.card-margin { 
+            border-left-color: var(--margin); 
+            cursor: pointer;
+        }
+        .card.card-margin:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
         .card-label {
             font-size: 11px;
             font-weight: bold;
             color: #7f8c8d;
             text-transform: uppercase;
             letter-spacing: 0.5px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
         }
         .card-value {
             font-size: 22px;
@@ -83,15 +94,51 @@
         .card-profit .card-value { color: var(--profit); }
         .card-margin .card-value { color: var(--margin); }
 
-        /* Chart Container */
-        .chart-container {
+        /* Collapsible Chart Module */
+        .chart-wrapper {
             background: #f8f9fa;
             border: 1px solid #e0e0e0;
             border-radius: 6px;
-            padding: 15px;
             margin-bottom: 25px;
+            overflow: hidden;
+            transition: all 0.3s ease-in-out;
+        }
+        .chart-header {
+            padding: 12px 20px;
+            background: #edf2f7;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            cursor: pointer;
+            user-select: none;
+            border-bottom: 1px solid #e0e0e0;
+        }
+        .chart-header-title {
+            font-size: 13px;
+            font-weight: bold;
+            color: var(--primary);
+        }
+        .chart-toggle-btn {
+            background: transparent;
+            border: none;
+            color: #555;
+            font-size: 12px;
+            font-weight: bold;
+            cursor: pointer;
+            padding: 0;
+        }
+        .chart-content {
+            padding: 15px;
             height: 260px;
             position: relative;
+            display: block;
+        }
+        /* Collapsed Default State */
+        .chart-collapsed .chart-content {
+            display: none;
+        }
+        .chart-collapsed .chart-header {
+            border-bottom: none;
         }
 
         .form-grid {
@@ -117,12 +164,8 @@
             transition: background 0.3s;
         }
         button:hover { background-color: #128f76; }
-        .btn-comp-trigger {
-            background-color: var(--comp);
-        }
-        .btn-comp-trigger:hover {
-            background-color: #d68910;
-        }
+        .btn-comp-trigger { background-color: var(--comp); }
+        .btn-comp-trigger:hover { background-color: #d68910; }
 
         /* Search & Filter Controls */
         .table-controls {
@@ -243,7 +286,7 @@
         }
         .btn-cancel { background-color: #95a5a6; }
 
-        /* Comp Generator Specific Styles */
+        /* Comp Generator Styles */
         .dropzone {
             border: 2px dashed #3498db;
             padding: 20px;
@@ -345,8 +388,11 @@
             <div class="card-label">Total Net Profit</div>
             <div class="card-value" id="cardProfit">$0.00</div>
         </div>
-        <div class="card card-margin">
-            <div class="card-label">Profit Margin</div>
+        <div class="card card-margin" onclick="toggleChartModule()">
+            <div class="card-label">
+                Profit Margin 
+                <span id="cardChartToggleHint" style="font-size:10px; text-transform:none; opacity:0.8;">[Expand Chart 📊]</span>
+            </div>
             <div class="card-value" id="cardMargin">0.0%</div>
         </div>
         <div class="card">
@@ -355,9 +401,15 @@
         </div>
     </div>
 
-    <!-- Sales & Profit Over Time Chart -->
-    <div class="chart-container">
-        <canvas id="salesChart"></canvas>
+    <!-- Collapsible Sales & Profit Chart Wrapper (Default Collapsed) -->
+    <div class="chart-wrapper chart-collapsed" id="chartModule">
+        <div class="chart-header" onclick="toggleChartModule()">
+            <span class="chart-header-title">📊 Revenue & Profit Analytics Chart</span>
+            <button class="chart-toggle-btn" id="chartToggleLabel">▼ Show Chart</button>
+        </div>
+        <div class="chart-content">
+            <canvas id="salesChart"></canvas>
+        </div>
     </div>
 
     <!-- Input Form -->
@@ -604,7 +656,24 @@
         updateSalesChart(data);
     }
 
-    // 6. Build and Render Monthly Sales & Profit Chart
+    // 6. Toggle Collapsible Chart Module
+    function toggleChartModule() {
+        const wrapper = document.getElementById('chartModule');
+        const btn = document.getElementById('chartToggleLabel');
+        const hint = document.getElementById('cardChartToggleHint');
+
+        wrapper.classList.toggle('chart-collapsed');
+
+        if (wrapper.classList.contains('chart-collapsed')) {
+            btn.innerText = '▼ Show Chart';
+            if (hint) hint.innerText = '[Expand Chart 📊]';
+        } else {
+            btn.innerText = '▲ Hide Chart';
+            if (hint) hint.innerText = '[Collapse Chart 📊]';
+        }
+    }
+
+    // 7. Build and Render Monthly Sales & Profit Chart
     function updateSalesChart(data) {
         const monthlyData = {};
 
@@ -677,7 +746,7 @@
         });
     }
 
-    // 7. Comp & Valuation Modal Logic
+    // 8. Comp & Valuation Modal Logic
     function openCompModal(itemName = '') {
         const queryInput = document.getElementById('compQuery');
         queryInput.value = itemName || document.getElementById('itemName').value || '';
@@ -704,7 +773,6 @@
             preview.style.display = 'inline-block';
             document.getElementById('dropzoneText').style.display = 'none';
 
-            // Auto-extract filename as starting search query
             const rawName = file.name.replace(/\.[^/.]+$/, "").replace(/[-_]/g, " ");
             const currentQuery = document.getElementById('compQuery').value;
             if (!currentQuery) {
@@ -738,7 +806,7 @@
         closeCompModal();
     }
 
-    // 8. Sort Handler
+    // 9. Sort Handler
     function sortTable(columnKey) {
         if (currentSortColumn === columnKey) {
             currentSortDirection = currentSortDirection === 'asc' ? 'desc' : 'asc';
@@ -757,7 +825,7 @@
         filterTable();
     }
 
-    // 9. Filter & Sort Table Data
+    // 10. Filter & Sort Table Data
     function filterTable() {
         const query = document.getElementById('searchInput').value.toLowerCase().trim();
         const statusChoice = document.getElementById('statusFilter').value;
@@ -818,7 +886,7 @@
         filterTable();
     }
 
-    // 10. Save new listing to Supabase
+    // 11. Save new listing to Supabase
     async function addListing() {
         const name = document.getElementById('itemName').value;
         const platform = document.getElementById('platform').value;
@@ -861,7 +929,7 @@
         fetchListings(); 
     }
 
-    // 11. Edit Modal Handling
+    // 12. Edit Modal Handling
     function openEditModal(item) {
         document.getElementById('editItemId').value = item.id;
         document.getElementById('editItemName').value = item.item_name || '';
@@ -927,7 +995,7 @@
         fetchListings();
     }
 
-    // 12. Handle Sold Modal Action
+    // 13. Handle Sold Modal Action
     async function toggleSold(item) {
         if (item.status === 'Sold') {
             const { error } = await supabaseClient
@@ -988,7 +1056,7 @@
         fetchListings();
     }
 
-    // 13. Delete Item
+    // 14. Delete Item
     async function deleteItem(id, name) {
         if (!confirm(`Are you sure you want to delete "${name}"?`)) return;
 
@@ -1006,7 +1074,7 @@
         fetchListings();
     }
 
-    // 14. Render Table / Cards
+    // 15. Render Table / Cards
     function renderTable(inventoryData) {
         const tbody = document.getElementById('inventoryBody');
         tbody.innerHTML = '';
