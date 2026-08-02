@@ -139,47 +139,51 @@
             color: #2c3e50;
         }
 
-        /* Collapsible Chart Module */
-        .chart-wrapper {
-            background: #f8f9fa;
+        /* Collapsible Section Wrappers */
+        .collapsible-wrapper {
+            background: #fff;
             border: 1px solid #e0e0e0;
             border-radius: 6px;
             margin-bottom: 25px;
             overflow: hidden;
             transition: all 0.3s ease-in-out;
         }
-        .chart-header {
-            padding: 12px 20px;
-            background: #edf2f7;
+        .collapsible-header {
+            padding: 14px 20px;
+            background: var(--primary);
+            color: white;
             display: flex;
             justify-content: space-between;
             align-items: center;
             cursor: pointer;
             user-select: none;
+        }
+        .collapsible-header.header-sold {
+            background: var(--sold);
+        }
+        .collapsible-header.header-chart {
+            background: #edf2f7;
+            color: var(--primary);
             border-bottom: 1px solid #e0e0e0;
         }
-        .chart-header-title {
-            font-size: 13px;
+        .collapsible-title {
+            font-size: 14px;
             font-weight: bold;
-            color: var(--primary);
         }
-        .chart-toggle-btn {
+        .toggle-btn {
             background: transparent;
             border: none;
-            color: #555;
+            color: inherit;
             font-size: 12px;
             font-weight: bold;
             cursor: pointer;
             padding: 0;
         }
-        .chart-content {
+        .collapsible-content {
             padding: 15px;
-            height: 260px;
-            position: relative;
             display: block;
         }
-        .chart-collapsed .chart-content { display: none; }
-        .chart-collapsed .chart-header { border-bottom: none; }
+        .is-collapsed .collapsible-content { display: none; }
 
         .form-grid {
             display: grid;
@@ -214,7 +218,7 @@
             display: flex;
             gap: 12px;
             align-items: center;
-            margin-bottom: 15px;
+            margin-bottom: 20px;
             flex-wrap: wrap;
             background: #f8f9fa;
             padding: 12px 15px;
@@ -243,7 +247,6 @@
         table {
             width: 100%;
             border-collapse: collapse;
-            margin-top: 10px;
         }
         th, td {
             padding: 12px;
@@ -251,12 +254,15 @@
             border-bottom: 1px solid #ddd;
         }
         th {
-            background-color: var(--primary);
-            color: white;
+            background-color: #f1f5f9;
+            color: var(--primary);
             user-select: none;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
         }
         th.sortable { cursor: pointer; }
-        th.sortable:hover { background-color: #34495e; }
+        th.sortable:hover { background-color: #e2e8f0; }
         .sort-icon { font-size: 11px; margin-left: 4px; opacity: 0.7; }
 
         .stale-listing { color: var(--warning); font-weight: bold; }
@@ -329,7 +335,7 @@
         }
         .btn-cancel { background-color: #95a5a6; }
 
-        /* Comp & AI Info Styles */
+        /* Comp & Valuation Box */
         .dropzone {
             border: 2px dashed #3498db;
             padding: 20px;
@@ -368,7 +374,6 @@
         .btn-google { background: #ea4335; }
         .btn-lens { background: #4285f4; }
 
-        /* Enhanced Comp Valuation Box */
         .valuation-box {
             background: #f8f9fa;
             border: 1px solid #e0e0e0;
@@ -513,7 +518,7 @@
             <div class="card-label">True Business Net</div>
             <div class="card-value" id="cardTrueNet" style="color: #16a085;">$0.00</div>
         </div>
-        <div class="card card-margin" onclick="toggleChartModule()">
+        <div class="card card-margin" onclick="toggleSection('chartModule')">
             <div class="card-label">
                 Profit Margin 
                 <span id="cardChartToggleHint" style="font-size:9px; text-transform:none; opacity:0.8;">[Chart 📊]</span>
@@ -536,13 +541,15 @@
     </div>
 
     <!-- Collapsible Sales & Profit Chart Wrapper (Default Collapsed) -->
-    <div class="chart-wrapper chart-collapsed" id="chartModule">
-        <div class="chart-header" onclick="toggleChartModule()">
-            <span class="chart-header-title">📊 Revenue & Profit Analytics Chart</span>
-            <button class="chart-toggle-btn" id="chartToggleLabel">▼ Show Chart</button>
+    <div class="collapsible-wrapper is-collapsed" id="chartModule">
+        <div class="collapsible-header header-chart" onclick="toggleSection('chartModule')">
+            <span class="collapsible-title">📊 Revenue & Profit Analytics Chart</span>
+            <button class="toggle-btn" id="label-chartModule">▼ Show Chart</button>
         </div>
-        <div class="chart-content">
-            <canvas id="salesChart"></canvas>
+        <div class="collapsible-content">
+            <div style="height: 260px; position: relative;">
+                <canvas id="salesChart"></canvas>
+            </div>
         </div>
     </div>
 
@@ -561,7 +568,7 @@
         <button class="btn-ai-trigger" onclick="openAiInfoModal()">✨ AI Info</button>
     </div>
 
-    <!-- Inventory Table Search & Filter Controls -->
+    <!-- Inventory Search & Filter Controls -->
     <div class="table-controls">
         <input type="text" id="searchInput" class="search-input" placeholder="🔍 Search inventory..." oninput="filterTable()">
         
@@ -584,28 +591,60 @@
         <span class="reset-link" onclick="resetFilters()">Reset</span>
     </div>
 
-    <!-- Inventory Data Table / Mobile Cards -->
-    <table>
-        <thead>
-            <tr>
-                <th class="sortable" onclick="sortTable('status')">Status <span id="sort-status" class="sort-icon">↕</span></th>
-                <th class="sortable" onclick="sortTable('item_name')">Item Name <span id="sort-item_name" class="sort-icon">↕</span></th>
-                <th class="sortable" onclick="sortTable('platform')">Platform <span id="sort-platform" class="sort-icon">↕</span></th>
-                <th class="sortable" onclick="sortTable('item_cost')">Cost <span id="sort-item_cost" class="sort-icon">↕</span></th>
-                <th class="sortable" onclick="sortTable('list_price')">List Price <span id="sort-list_price" class="sort-icon">↕</span></th>
-                <th class="sortable" onclick="sortTable('actual_sale_price')">Actual Sale <span id="sort-actual_sale_price" class="sort-icon">↕</span></th>
-                <th class="sortable" onclick="sortTable('total_payout')">Order Earnings <span id="sort-total_payout" class="sort-icon">↕</span></th>
-                <th class="sortable" onclick="sortTable('fee_pct')">Fee % <span id="sort-fee_pct" class="sort-icon">↕</span></th>
-                <th class="sortable" onclick="sortTable('net_profit')">Net Profit <span id="sort-net_profit" class="sort-icon">↕</span></th>
-                <th class="sortable" onclick="sortTable('date_listed')">Date Listed <span id="sort-date_listed" class="sort-icon">↕</span></th>
-                <th class="sortable" onclick="sortTable('days_active')">Days Active <span id="sort-days_active" class="sort-icon">↕</span></th>
-                <th>Actions</th>
-            </tr>
-        </thead>
-        <tbody id="inventoryBody">
-            <!-- Listings will populate here -->
-        </tbody>
-    </table>
+    <!-- ACTIVE LISTINGS COLLAPSIBLE TABLE -->
+    <div class="collapsible-wrapper" id="activeGroup">
+        <div class="collapsible-header" onclick="toggleSection('activeGroup')">
+            <span class="collapsible-title">📦 Active Listings (<span id="activeCount">0</span>)</span>
+            <button class="toggle-btn" id="label-activeGroup">▲ Hide Table</button>
+        </div>
+        <div class="collapsible-content">
+            <table>
+                <thead>
+                    <tr>
+                        <th class="sortable" onclick="sortTable('item_name')">Item Name <span id="sort-active-item_name" class="sort-icon">↕</span></th>
+                        <th class="sortable" onclick="sortTable('platform')">Platform <span id="sort-active-platform" class="sort-icon">↕</span></th>
+                        <th class="sortable" onclick="sortTable('item_cost')">Cost <span id="sort-active-item_cost" class="sort-icon">↕</span></th>
+                        <th class="sortable" onclick="sortTable('list_price')">List Price <span id="sort-active-list_price" class="sort-icon">↕</span></th>
+                        <th class="sortable" onclick="sortTable('date_listed')">Date Listed <span id="sort-active-date_listed" class="sort-icon">↕</span></th>
+                        <th class="sortable" onclick="sortTable('days_active')">Days Active <span id="sort-active-days_active" class="sort-icon">↕</span></th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="activeBody">
+                    <!-- Active listings populate here -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- SOLD LISTINGS COLLAPSIBLE TABLE -->
+    <div class="collapsible-wrapper" id="soldGroup">
+        <div class="collapsible-header header-sold" onclick="toggleSection('soldGroup')">
+            <span class="collapsible-title">✅ Sold Listings (<span id="soldCount">0</span>)</span>
+            <button class="toggle-btn" id="label-soldGroup">▲ Hide Table</button>
+        </div>
+        <div class="collapsible-content">
+            <table>
+                <thead>
+                    <tr>
+                        <th class="sortable" onclick="sortTable('item_name')">Item Name <span id="sort-sold-item_name" class="sort-icon">↕</span></th>
+                        <th class="sortable" onclick="sortTable('platform')">Platform <span id="sort-sold-platform" class="sort-icon">↕</span></th>
+                        <th class="sortable" onclick="sortTable('item_cost')">Cost <span id="sort-sold-item_cost" class="sort-icon">↕</span></th>
+                        <th class="sortable" onclick="sortTable('list_price')">List Price <span id="sort-sold-list_price" class="sort-icon">↕</span></th>
+                        <th class="sortable" onclick="sortTable('actual_sale_price')">Actual Sale <span id="sort-sold-actual_sale_price" class="sort-icon">↕</span></th>
+                        <th class="sortable" onclick="sortTable('total_payout')">Order Earnings <span id="sort-sold-total_payout" class="sort-icon">↕</span></th>
+                        <th class="sortable" onclick="sortTable('fee_pct')">Fee % <span id="sort-sold-fee_pct" class="sort-icon">↕</span></th>
+                        <th class="sortable" onclick="sortTable('net_profit')">Net Profit <span id="sort-sold-net_profit" class="sort-icon">↕</span></th>
+                        <th class="sortable" onclick="sortTable('date_listed')">Date Listed <span id="sort-sold-date_listed" class="sort-icon">↕</span></th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="soldBody">
+                    <!-- Sold listings populate here -->
+                </tbody>
+            </table>
+        </div>
+    </div>
 
     <!-- OVERHEAD EXPENSES & PLATFORM FEES SECTION -->
     <h2 class="section-title">📦 Overhead, Fees & Operating Expenses</h2>
@@ -1042,20 +1081,19 @@
         });
     }
 
-    // 6. Toggle Collapsible Chart Module
-    function toggleChartModule() {
-        const wrapper = document.getElementById('chartModule');
-        const btn = document.getElementById('chartToggleLabel');
-        const hint = document.getElementById('cardChartToggleHint');
+    // 6. Generic Section Toggle Helper
+    function toggleSection(wrapperId) {
+        const wrapper = document.getElementById(wrapperId);
+        const btn = document.getElementById(`label-${wrapperId}`);
 
-        wrapper.classList.toggle('chart-collapsed');
+        wrapper.classList.toggle('is-collapsed');
 
-        if (wrapper.classList.contains('chart-collapsed')) {
-            btn.innerText = '▼ Show Chart';
-            if (hint) hint.innerText = '[Chart 📊]';
-        } else {
-            btn.innerText = '▲ Hide Chart';
-            if (hint) hint.innerText = '[Collapse 📊]';
+        if (btn) {
+            if (wrapper.classList.contains('is-collapsed')) {
+                btn.innerText = wrapperId === 'chartModule' ? '▼ Show Chart' : '▼ Show Table';
+            } else {
+                btn.innerText = wrapperId === 'chartModule' ? '▲ Hide Chart' : '▲ Hide Table';
+            }
         }
     }
 
@@ -1243,13 +1281,11 @@
     function calculateValuationRange() {
         const query = document.getElementById('compQuery').value.trim();
         
-        // Generate pseudo-comp estimations based on keyword matching or existing inventory data
         let seed = 0;
         for (let i = 0; i < query.length; i++) seed += query.charCodeAt(i);
 
         let baseVal = seed > 0 ? (seed % 180) + 25 : 45;
 
-        // Check if item exists in past sold inventory for precise real-data comps
         const historicalMatch = allInventoryData.find(i => i.item_name && i.item_name.toLowerCase().includes(query.toLowerCase()));
         if (historicalMatch && historicalMatch.list_price) {
             baseVal = historicalMatch.list_price;
@@ -1258,7 +1294,7 @@
         calculatedCompPrices.low = baseVal * 0.82;
         calculatedCompPrices.mid = baseVal;
         calculatedCompPrices.high = baseVal * 1.25;
-        calculatedCompPrices.rec = baseVal * 0.96; // Optimal fair-market target for fast velocity
+        calculatedCompPrices.rec = baseVal * 0.96;
 
         document.getElementById('valLow').innerText = `$${calculatedCompPrices.low.toFixed(2)}`;
         document.getElementById('valMid').innerText = `$${calculatedCompPrices.mid.toFixed(2)}`;
@@ -1307,10 +1343,13 @@
 
         document.querySelectorAll('.sort-icon').forEach(icon => icon.innerText = '↕');
 
-        const activeIcon = document.getElementById(`sort-${columnKey}`);
-        if (activeIcon) {
-            activeIcon.innerText = currentSortDirection === 'asc' ? '↑' : '↓';
-        }
+        // Update indicators on both active and sold tables
+        ['active', 'sold'].forEach(prefix => {
+            const activeIcon = document.getElementById(`sort-${prefix}-${columnKey}`);
+            if (activeIcon) {
+                activeIcon.innerText = currentSortDirection === 'asc' ? '↑' : '↓';
+            }
+        });
 
         filterTable();
     }
@@ -1367,7 +1406,7 @@
             });
         }
 
-        renderTable(filtered);
+        renderTables(filtered);
         updateSummaryCards(filtered);
     }
 
@@ -1569,58 +1608,88 @@
         fetchListings();
     }
 
-    // 16. Render Table / Cards
-    function renderTable(inventoryData) {
-        const tbody = document.getElementById('inventoryBody');
-        tbody.innerHTML = '';
+    // 16. Render Split Tables (Active & Sold)
+    function renderTables(inventoryData) {
+        const activeTbody = document.getElementById('activeBody');
+        const soldTbody = document.getElementById('soldBody');
 
-        if (!inventoryData || inventoryData.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="12" style="text-align:center; color:#7f8c8d;">No matching inventory items found.</td></tr>';
-            return;
+        activeTbody.innerHTML = '';
+        soldTbody.innerHTML = '';
+
+        const activeItems = inventoryData.filter(i => i.status !== 'Sold');
+        const soldItems = inventoryData.filter(i => i.status === 'Sold');
+
+        document.getElementById('activeCount').innerText = activeItems.length;
+        document.getElementById('soldCount').innerText = soldItems.length;
+
+        // Render Active Listings Table
+        if (activeItems.length === 0) {
+            activeTbody.innerHTML = '<tr><td colspan="7" style="text-align:center; color:#7f8c8d;">No active items found.</td></tr>';
+        } else {
+            activeItems.forEach(item => {
+                const row = document.createElement('tr');
+                const listDate = new Date(item.date_listed);
+                const today = new Date();
+                const diffTime = Math.abs(today - listDate);
+                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) - 1; 
+                const daysClass = diffDays > 30 ? 'stale-listing' : '';
+
+                const itemJson = JSON.stringify(item).replace(/'/g, "&apos;");
+
+                row.innerHTML = `
+                    <td data-label="Item Name"><strong>${item.item_name}</strong></td>
+                    <td data-label="Platform">${item.platform}</td>
+                    <td data-label="Cost">$${item.item_cost.toFixed(2)}</td>
+                    <td data-label="List Price">$${item.list_price.toFixed(2)}</td>
+                    <td data-label="Date Listed">${item.date_listed}</td>
+                    <td data-label="Days Active" class="${daysClass}">${diffDays} Days</td>
+                    <td data-label="Actions">
+                        <button class="action-btn btn-ai-trigger" onclick='openAiInfoModal("${item.item_name}")'>AI Info</button>
+                        <button class="action-btn btn-comp-trigger" onclick='openCompModal("${item.item_name}")'>Comps</button>
+                        <button class="action-btn btn-edit" onclick='openEditModal(${itemJson})'>Edit</button>
+                        <button class="action-btn btn-sold" onclick='toggleSold(${itemJson})'>Mark Sold</button>
+                        <button class="action-btn btn-delete" onclick="deleteItem(${item.id}, '${item.item_name}')">Delete</button>
+                    </td>
+                `;
+                activeTbody.appendChild(row);
+            });
         }
 
-        inventoryData.forEach((item) => {
-            const row = document.createElement('tr');
-            const isSold = item.status === 'Sold';
+        // Render Sold Listings Table
+        if (soldItems.length === 0) {
+            soldTbody.innerHTML = '<tr><td colspan="10" style="text-align:center; color:#7f8c8d;">No sold items found.</td></tr>';
+        } else {
+            soldItems.forEach(item => {
+                const row = document.createElement('tr');
+                row.classList.add('status-sold');
 
-            if (isSold) row.classList.add('status-sold');
+                const salePrice = item.actual_sale_price || 0;
+                const payout = item.total_payout || 0;
+                const feePct = salePrice > 0 ? (((salePrice - payout) / salePrice) * 100) : 0;
 
-            const salePrice = item.actual_sale_price || 0;
-            const payout = item.total_payout || 0;
-            const feePct = (isSold && salePrice > 0) ? (((salePrice - payout) / salePrice) * 100) : 0;
+                const itemJson = JSON.stringify(item).replace(/'/g, "&apos;");
 
-            const listDate = new Date(item.date_listed);
-            const today = new Date();
-            const diffTime = Math.abs(today - listDate);
-            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) - 1; 
-            const daysClass = (!isSold && diffDays > 30) ? 'stale-listing' : '';
-
-            const itemJson = JSON.stringify(item).replace(/'/g, "&apos;");
-
-            row.innerHTML = `
-                <td data-label="Status"><strong>${item.status || 'Active'}</strong></td>
-                <td data-label="Item Name">${item.item_name}</td>
-                <td data-label="Platform">${item.platform}</td>
-                <td data-label="Cost">$${item.item_cost.toFixed(2)}</td>
-                <td data-label="List Price">$${item.list_price.toFixed(2)}</td>
-                <td data-label="Actual Sale">${isSold ? '$' + salePrice.toFixed(2) : '-'}</td>
-                <td data-label="Order Earnings" class="${isSold ? 'payout-text' : ''}">${isSold ? '$' + payout.toFixed(2) : '-'}</td>
-                <td data-label="Fee %" class="${isSold ? 'fee-text' : ''}">${isSold ? feePct.toFixed(1) + '%' : '-'}</td>
-                <td data-label="Net Profit" class="${isSold ? 'profit-text' : ''}">${isSold ? '$' + (item.net_profit || 0).toFixed(2) : '-'}</td>
-                <td data-label="Date Listed">${item.date_listed}</td>
-                <td data-label="Days Active" class="${daysClass}">${isSold ? '-' : diffDays + ' Days'}</td>
-                <td data-label="Actions">
-                    <button class="action-btn btn-ai-trigger" onclick='openAiInfoModal("${item.item_name}")'>AI Info</button>
-                    <button class="action-btn btn-comp-trigger" onclick='openCompModal("${item.item_name}")'>Comps</button>
-                    <button class="action-btn btn-edit" onclick='openEditModal(${itemJson})'>Edit</button>
-                    <button class="action-btn btn-sold" onclick='toggleSold(${itemJson})'>
-                        ${isSold ? 'Reactivate' : 'Mark Sold'}
-                    </button>
-                    <button class="action-btn btn-delete" onclick="deleteItem(${item.id}, '${item.item_name}')">Delete</button>
-                </td>
-            `;
-            tbody.appendChild(row);
-        });
+                row.innerHTML = `
+                    <td data-label="Item Name"><strong>${item.item_name}</strong></td>
+                    <td data-label="Platform">${item.platform}</td>
+                    <td data-label="Cost">$${item.item_cost.toFixed(2)}</td>
+                    <td data-label="List Price">$${item.list_price.toFixed(2)}</td>
+                    <td data-label="Actual Sale">$${salePrice.toFixed(2)}</td>
+                    <td data-label="Order Earnings" class="payout-text">$${payout.toFixed(2)}</td>
+                    <td data-label="Fee %" class="fee-text">${feePct.toFixed(1)}%</td>
+                    <td data-label="Net Profit" class="profit-text">$${(item.net_profit || 0).toFixed(2)}</td>
+                    <td data-label="Date Listed">${item.date_listed}</td>
+                    <td data-label="Actions">
+                        <button class="action-btn btn-ai-trigger" onclick='openAiInfoModal("${item.item_name}")'>AI Info</button>
+                        <button class="action-btn btn-comp-trigger" onclick='openCompModal("${item.item_name}")'>Comps</button>
+                        <button class="action-btn btn-edit" onclick='openEditModal(${itemJson})'>Edit</button>
+                        <button class="action-btn btn-sold" onclick='toggleSold(${itemJson})'>Reactivate</button>
+                        <button class="action-btn btn-delete" onclick="deleteItem(${item.id}, '${item.item_name}')">Delete</button>
+                    </td>
+                `;
+                soldTbody.appendChild(row);
+            });
+        }
     }
 </script>
 
