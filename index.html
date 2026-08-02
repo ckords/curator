@@ -341,6 +341,39 @@
         }
         .btn-cancel { background-color: #95a5a6; }
 
+        /* History Log Container in Edit Modal */
+        .history-log-box {
+            background: #f8f9fa;
+            border: 1px solid #e0e0e0;
+            border-radius: 6px;
+            padding: 12px;
+            margin-top: 20px;
+            font-size: 12px;
+        }
+        .history-log-title {
+            font-weight: bold;
+            color: var(--primary);
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            font-size: 11px;
+            letter-spacing: 0.5px;
+        }
+        .history-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+            max-height: 120px;
+            overflow-y: auto;
+        }
+        .history-item {
+            padding: 6px 0;
+            border-bottom: 1px solid #edf2f7;
+            display: flex;
+            justify-content: space-between;
+            color: #555;
+        }
+        .history-item:last-child { border-bottom: none; }
+
         /* Comp & Valuation Box */
         .dropzone {
             border: 2px dashed #3498db;
@@ -806,7 +839,7 @@
     </div>
 </div>
 
-<!-- Modal Pop-Up for Full Item Editing -->
+<!-- Modal Pop-Up for Full Item Editing & Price Drop Log -->
 <div class="modal-overlay" id="editModal">
     <div class="modal-content">
         <h2>Edit Listing</h2>
@@ -858,6 +891,14 @@
         <div class="modal-group">
             <label for="editDateListed">Date Listed</label>
             <input type="date" id="editDateListed">
+        </div>
+
+        <!-- History Log Section inside Edit Modal -->
+        <div class="history-log-box">
+            <div class="history-log-title">📜 Price Drop & Revision History</div>
+            <ul class="history-list" id="editPriceHistoryList">
+                <li style="color:#7f8c8d;">No price drop events logged yet.</li>
+            </ul>
         </div>
 
         <div class="modal-actions">
@@ -1476,8 +1517,8 @@
         fetchListings(); 
     }
 
-    // 13. Edit Modal Handling
-    function openEditModal(item) {
+    // 13. Edit Modal & Audit History Handling
+    async function openEditModal(item) {
         document.getElementById('editItemId').value = item.id;
         document.getElementById('editOldPrice').value = item.list_price || 0;
         document.getElementById('editItemName').value = item.item_name || '';
@@ -1488,6 +1529,33 @@
         document.getElementById('editActualSale').value = item.actual_sale_price || 0;
         document.getElementById('editTotalPayout').value = item.total_payout || 0;
         document.getElementById('editDateListed').value = item.date_listed || '';
+
+        // Load price drop audit history for this listing
+        const historyList = document.getElementById('editPriceHistoryList');
+        historyList.innerHTML = '<li style="color:#7f8c8d;">Loading history...</li>';
+
+        const { data, error } = await supabaseClient
+            .from('curator_price_drops')
+            .select('*')
+            .eq('listing_id', item.id)
+            .order('date_dropped', { ascending: false });
+
+        if (error || !data || data.length === 0) {
+            historyList.innerHTML = '<li style="color:#7f8c8d;">No price drop events logged yet.</li>';
+        } else {
+            historyList.innerHTML = '';
+            data.forEach(log => {
+                const li = document.createElement('li');
+                li.className = 'history-item';
+                const dateStr = new Date(log.date_dropped).toLocaleDateString();
+                const diff = (log.previous_price - log.new_price).toFixed(2);
+                li.innerHTML = `
+                    <span><strong>${dateStr}</strong>: $${log.previous_price.toFixed(2)} → $${log.new_price.toFixed(2)}</span>
+                    <span style="color:var(--drop); font-weight:bold;">(-$${diff})</span>
+                `;
+                historyList.appendChild(li);
+            });
+        }
 
         document.getElementById('editModal').style.display = 'flex';
     }
@@ -1530,7 +1598,7 @@
             date_listed: dateListed
         };
 
-        // Price Drop Event Logging
+        // Price Drop Event Logging & Counter Reset
         if (listPrice < oldPrice) {
             updatePayload.last_price_drop = nowIso;
             
