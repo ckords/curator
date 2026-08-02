@@ -646,6 +646,7 @@
                         <th class="sortable" onclick="sortTable('list_price')">List Price <span id="sort-active-list_price" class="sort-icon">↕</span></th>
                         <th class="sortable" onclick="sortTable('date_listed')">Date Listed <span id="sort-active-date_listed" class="sort-icon">↕</span></th>
                         <th class="sortable" onclick="sortTable('days_active')">Total Days <span id="sort-active-days_active" class="sort-icon">↕</span></th>
+                        <th class="sortable" onclick="sortTable('last_price_drop')">Date Reduced <span id="sort-active-last_price_drop" class="sort-icon">↕</span></th>
                         <th class="sortable" onclick="sortTable('days_since_drop')">Days Since Drop <span id="sort-active-days_since_drop" class="sort-icon">↕</span></th>
                         <th>Actions</th>
                     </tr>
@@ -889,8 +890,13 @@
         </div>
 
         <div class="modal-group">
-            <label for="editDateListed">Date Listed</label>
-            <input type="date" id="editDateListed">
+            <label for="editDateListed">Date Listed (Original)</label>
+            <input type="date" id="editDateListed" readonly style="background:#f1f5f9; cursor:not-allowed;">
+        </div>
+
+        <div class="modal-group">
+            <label for="editDatePriceReduced">Date Price Reduced</label>
+            <input type="date" id="editDatePriceReduced">
         </div>
 
         <!-- History Log Section inside Edit Modal -->
@@ -1435,10 +1441,10 @@
                     const today = new Date();
                     valA = a.status === 'Sold' ? -1 : Math.ceil(Math.abs(today - new Date(a.date_listed)) / (1000 * 60 * 60 * 24));
                     valB = b.status === 'Sold' ? -1 : Math.ceil(Math.abs(today - new Date(b.date_listed)) / (1000 * 60 * 60 * 24));
-                } else if (currentSortColumn === 'days_since_drop') {
+                } else if (currentSortColumn === 'days_since_drop' || currentSortColumn === 'last_price_drop') {
                     const today = new Date();
-                    valA = Math.ceil(Math.abs(today - new Date(a.last_price_drop || a.date_listed)) / (1000 * 60 * 60 * 24));
-                    valB = Math.ceil(Math.abs(today - new Date(b.last_price_drop || b.date_listed)) / (1000 * 60 * 60 * 24));
+                    valA = new Date(a.last_price_drop || a.date_listed);
+                    valB = new Date(b.last_price_drop || b.date_listed);
                 } else if (currentSortColumn === 'fee_pct') {
                     const feeA = (a.status === 'Sold' && a.actual_sale_price > 0) ? ((a.actual_sale_price - a.total_payout) / a.actual_sale_price) : 0;
                     const feeB = (b.status === 'Sold' && b.actual_sale_price > 0) ? ((b.actual_sale_price - b.total_payout) / b.actual_sale_price) : 0;
@@ -1528,7 +1534,13 @@
         document.getElementById('editStatus').value = item.status || 'Active';
         document.getElementById('editActualSale').value = item.actual_sale_price || 0;
         document.getElementById('editTotalPayout').value = item.total_payout || 0;
+        
+        // Date Listed remains locked to preserve original listing date
         document.getElementById('editDateListed').value = item.date_listed || '';
+
+        // Default Date Price Reduced input to last recorded drop or today
+        const dropDateIso = item.last_price_drop ? item.last_price_drop.substring(0, 10) : new Date().toISOString().substring(0, 10);
+        document.getElementById('editDatePriceReduced').value = dropDateIso;
 
         // Load price drop audit history for this listing
         const historyList = document.getElementById('editPriceHistoryList');
@@ -1547,7 +1559,7 @@
             data.forEach(log => {
                 const li = document.createElement('li');
                 li.className = 'history-item';
-                const dateStr = new Date(log.date_dropped).toLocaleDateString();
+                const dateStr = log.date_dropped ? log.date_dropped.substring(0, 10) : '';
                 const diff = (log.previous_price - log.new_price).toFixed(2);
                 li.innerHTML = `
                     <span><strong>${dateStr}</strong>: $${log.previous_price.toFixed(2)} → $${log.new_price.toFixed(2)}</span>
@@ -1575,6 +1587,7 @@
         const actualSale = parseFloat(document.getElementById('editActualSale').value) || 0;
         const totalPayout = parseFloat(document.getElementById('editTotalPayout').value) || 0;
         const dateListed = document.getElementById('editDateListed').value;
+        const customDropDate = document.getElementById('editDatePriceReduced').value;
 
         if (!itemName || !dateListed) {
             alert('Item Name and Date Listed are required.');
@@ -1583,7 +1596,9 @@
 
         const targetMargin = listPrice - cost;
         const netProfit = status === 'Sold' ? totalPayout - cost : 0;
-        const nowIso = new Date().toISOString();
+        
+        // Convert custom reduction date to ISO string
+        const dropTimestamp = customDropDate ? new Date(customDropDate).toISOString() : new Date().toISOString();
 
         const updatePayload = {
             item_name: itemName,
@@ -1598,15 +1613,15 @@
             date_listed: dateListed
         };
 
-        // Price Drop Event Logging & Counter Reset
+        // Automatic Price Drop Event Logging & Counter Reset Trigger
         if (listPrice < oldPrice) {
-            updatePayload.last_price_drop = nowIso;
+            updatePayload.last_price_drop = dropTimestamp;
             
             await supabaseClient.from('curator_price_drops').insert([{
                 listing_id: id,
                 previous_price: oldPrice,
                 new_price: listPrice,
-                date_dropped: nowIso
+                date_dropped: dropTimestamp
             }]);
         }
 
@@ -1720,7 +1735,7 @@
 
         // Render Active Listings Table
         if (activeItems.length === 0) {
-            activeTbody.innerHTML = '<tr><td colspan="8" style="text-align:center; color:#7f8c8d;">No active items found.</td></tr>';
+            activeTbody.innerHTML = '<tr><td colspan="9" style="text-align:center; color:#7f8c8d;">No active items found.</td></tr>';
         } else {
             activeItems.forEach(item => {
                 const row = document.createElement('tr');
@@ -1731,8 +1746,9 @@
                 const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) - 1; 
                 const daysClass = diffDays > 30 ? 'stale-listing' : '';
 
-                // Calculate Days Since Price Drop
+                // Calculate Days Since Price Drop & Date Reduced string
                 const dropDate = item.last_price_drop ? new Date(item.last_price_drop) : listDate;
+                const dropDateStr = item.last_price_drop ? item.last_price_drop.substring(0, 10) : item.date_listed;
                 const dropTime = Math.abs(today - dropDate);
                 const dropDays = Math.ceil(dropTime / (1000 * 60 * 60 * 24)) - 1;
 
@@ -1745,6 +1761,7 @@
                     <td data-label="List Price">$${item.list_price.toFixed(2)}</td>
                     <td data-label="Date Listed">${item.date_listed}</td>
                     <td data-label="Total Days" class="${daysClass}">${diffDays} Days</td>
+                    <td data-label="Date Reduced">${dropDateStr}</td>
                     <td data-label="Days Since Drop" class="drop-counter">⚡ ${dropDays} Days</td>
                     <td data-label="Actions">
                         <button class="action-btn btn-ai-trigger" onclick='openAiInfoModal("${item.item_name}")'>AI Info</button>
