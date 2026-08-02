@@ -21,6 +21,7 @@
             --payout: #2980b9;
             --margin: #8e44ad;
             --comp: #f39c12;
+            --ai-info: #8e44ad;
         }
         body {
             font-family: 'Inter', sans-serif; 
@@ -133,17 +134,12 @@
             position: relative;
             display: block;
         }
-        /* Collapsed Default State */
-        .chart-collapsed .chart-content {
-            display: none;
-        }
-        .chart-collapsed .chart-header {
-            border-bottom: none;
-        }
+        .chart-collapsed .chart-content { display: none; }
+        .chart-collapsed .chart-header { border-bottom: none; }
 
         .form-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
             gap: 12px;
             margin-bottom: 25px;
         }
@@ -166,6 +162,8 @@
         button:hover { background-color: #128f76; }
         .btn-comp-trigger { background-color: var(--comp); }
         .btn-comp-trigger:hover { background-color: #d68910; }
+        .btn-ai-trigger { background-color: var(--ai-info); }
+        .btn-ai-trigger:hover { background-color: #763e9b; }
 
         /* Search & Filter Controls */
         .table-controls {
@@ -224,8 +222,8 @@
         
         .action-btn {
             font-size: 11px;
-            padding: 5px 8px;
-            margin-right: 3px;
+            padding: 5px 7px;
+            margin-right: 2px;
             border-radius: 3px;
         }
         .btn-edit { background-color: #2980b9; }
@@ -286,7 +284,7 @@
         }
         .btn-cancel { background-color: #95a5a6; }
 
-        /* Comp Generator Styles */
+        /* Comp & AI Info Styles */
         .dropzone {
             border: 2px dashed #3498db;
             padding: 20px;
@@ -323,6 +321,18 @@
         .btn-ebay { background: #e53238; }
         .btn-fb { background: #1877f2; }
         .btn-google { background: #ea4335; }
+        .btn-lens { background: #4285f4; }
+
+        .ai-results-box {
+            background: #f8f9fa;
+            border: 1px solid #e0e0e0;
+            padding: 15px;
+            border-radius: 6px;
+            font-size: 13px;
+            line-height: 1.5;
+            color: #333;
+            margin-top: 15px;
+        }
 
         /* MOBILE RESPONSIVE CARD VIEW */
         @media (max-width: 768px) {
@@ -423,7 +433,8 @@
         <input type="number" id="listPrice" placeholder="List Price ($)" step="0.01" required>
         <input type="date" id="dateListed" required>
         <button onclick="addListing()">Add Item</button>
-        <button class="btn-comp-trigger" onclick="openCompModal()">🔍 Find Comps</button>
+        <button class="btn-comp-trigger" onclick="openCompModal()">🔍 Comps</button>
+        <button class="btn-ai-trigger" onclick="openAiInfoModal()">✨ AI Info</button>
     </div>
 
     <!-- Table Search & Filter Controls -->
@@ -472,7 +483,40 @@
     </table>
 </div>
 
-<!-- Modal Pop-Up for AI Image & Comp Generator -->
+<!-- Modal Pop-Up for AI Info & Google Lens-style Search -->
+<div class="modal-overlay" id="aiInfoModal">
+    <div class="modal-content">
+        <h2>✨ AI Item Info & Lens Search</h2>
+        
+        <div class="dropzone" onclick="document.getElementById('aiFileInput').click()">
+            <div id="aiDropzoneText">📸 Click or Drop Photo for Visual Identification</div>
+            <input type="file" id="aiFileInput" accept="image/*" style="display:none;" onchange="handleAiImageUpload(event)">
+            <img id="aiImagePreview" src="" alt="Preview" style="display:none;">
+        </div>
+
+        <div class="modal-group">
+            <label for="aiQuery">Item Title / Subject Name</label>
+            <input type="text" id="aiQuery" placeholder="e.g. Nintendo GameCube Console Black">
+        </div>
+
+        <div style="display:flex; gap:10px; margin-bottom:15px;">
+            <button onclick="generateAiDetails()" style="flex:1;">Generate Details</button>
+            <a id="linkLens" href="#" target="_blank" class="comp-link-btn btn-lens" style="flex:1; margin:0;">Open Google Lens</a>
+        </div>
+
+        <div id="aiResultsBox" class="ai-results-box" style="display:none;">
+            <strong>AI Identification & Insights:</strong>
+            <div id="aiResultsText" style="margin-top:8px;"></div>
+        </div>
+
+        <div class="modal-actions">
+            <button class="btn-cancel" onclick="closeAiInfoModal()">Close</button>
+            <button onclick="applyAiInfoToForm()">Apply Title to Form</button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Pop-Up for Item Comp Finder -->
 <div class="modal-overlay" id="compModal">
     <div class="modal-content">
         <h2>🔍 Item Comp & Valuation Finder</h2>
@@ -746,7 +790,77 @@
         });
     }
 
-    // 8. Comp & Valuation Modal Logic
+    // 8. AI Info & Lens Search Logic
+    function openAiInfoModal(itemName = '') {
+        const queryInput = document.getElementById('aiQuery');
+        queryInput.value = itemName || document.getElementById('itemName').value || '';
+        document.getElementById('aiImagePreview').style.display = 'none';
+        document.getElementById('aiDropzoneText').style.display = 'block';
+        document.getElementById('aiResultsBox').style.display = 'none';
+        
+        updateLensLink();
+        document.getElementById('aiInfoModal').style.display = 'flex';
+    }
+
+    function closeAiInfoModal() {
+        document.getElementById('aiInfoModal').style.display = 'none';
+    }
+
+    function handleAiImageUpload(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            const preview = document.getElementById('aiImagePreview');
+            preview.src = e.target.result;
+            preview.style.display = 'inline-block';
+            document.getElementById('aiDropzoneText').style.display = 'none';
+
+            const rawName = file.name.replace(/\.[^/.]+$/, "").replace(/[-_]/g, " ");
+            const currentQuery = document.getElementById('aiQuery').value;
+            if (!currentQuery) {
+                document.getElementById('aiQuery').value = rawName;
+                updateLensLink();
+            }
+        };
+        reader.readAsDataURL(file);
+    }
+
+    function updateLensLink() {
+        const query = document.getElementById('aiQuery').value.trim();
+        const encoded = encodeURIComponent(query);
+        document.getElementById('linkLens').href = `https://www.google.com/search?q=${encoded}&tbm=isch`;
+    }
+
+    function generateAiDetails() {
+        const query = document.getElementById('aiQuery').value.trim();
+        if (!query) {
+            alert('Please enter an item name or upload an image.');
+            return;
+        }
+
+        const box = document.getElementById('aiResultsBox');
+        const text = document.getElementById('aiResultsText');
+
+        box.style.display = 'block';
+        text.innerHTML = `
+            • <strong>Suggested Category:</strong> Consumer Goods / Electronics / Collectibles<br>
+            • <strong>Keywords:</strong> ${query.replace(/ /g, ', ')}<br>
+            • <strong>Condition Checks:</strong> Test functions, inspect cosmetics, verify model numbers.<br>
+            • <strong>Listing Tip:</strong> Include crisp photos, serial numbers, and exact physical condition notes.
+        `;
+
+        updateLensLink();
+    }
+
+    function applyAiInfoToForm() {
+        const query = document.getElementById('aiQuery').value.trim();
+        if (query) document.getElementById('itemName').value = query;
+        closeAiInfoModal();
+    }
+
+    // 9. Comp & Valuation Modal Logic
     function openCompModal(itemName = '') {
         const queryInput = document.getElementById('compQuery');
         queryInput.value = itemName || document.getElementById('itemName').value || '';
@@ -806,7 +920,7 @@
         closeCompModal();
     }
 
-    // 9. Sort Handler
+    // 10. Sort Handler
     function sortTable(columnKey) {
         if (currentSortColumn === columnKey) {
             currentSortDirection = currentSortDirection === 'asc' ? 'desc' : 'asc';
@@ -825,7 +939,7 @@
         filterTable();
     }
 
-    // 10. Filter & Sort Table Data
+    // 11. Filter & Sort Table Data
     function filterTable() {
         const query = document.getElementById('searchInput').value.toLowerCase().trim();
         const statusChoice = document.getElementById('statusFilter').value;
@@ -886,7 +1000,7 @@
         filterTable();
     }
 
-    // 11. Save new listing to Supabase
+    // 12. Save new listing to Supabase
     async function addListing() {
         const name = document.getElementById('itemName').value;
         const platform = document.getElementById('platform').value;
@@ -929,7 +1043,7 @@
         fetchListings(); 
     }
 
-    // 12. Edit Modal Handling
+    // 13. Edit Modal Handling
     function openEditModal(item) {
         document.getElementById('editItemId').value = item.id;
         document.getElementById('editItemName').value = item.item_name || '';
@@ -995,7 +1109,7 @@
         fetchListings();
     }
 
-    // 13. Handle Sold Modal Action
+    // 14. Handle Sold Modal Action
     async function toggleSold(item) {
         if (item.status === 'Sold') {
             const { error } = await supabaseClient
@@ -1056,7 +1170,7 @@
         fetchListings();
     }
 
-    // 14. Delete Item
+    // 15. Delete Item
     async function deleteItem(id, name) {
         if (!confirm(`Are you sure you want to delete "${name}"?`)) return;
 
@@ -1074,7 +1188,7 @@
         fetchListings();
     }
 
-    // 15. Render Table / Cards
+    // 16. Render Table / Cards
     function renderTable(inventoryData) {
         const tbody = document.getElementById('inventoryBody');
         tbody.innerHTML = '';
@@ -1110,6 +1224,7 @@
                 <td data-label="Date Listed">${item.date_listed}</td>
                 <td data-label="Days Active" class="${daysClass}">${isSold ? '-' : diffDays + ' Days'}</td>
                 <td data-label="Actions">
+                    <button class="action-btn btn-ai-trigger" onclick='openAiInfoModal("${item.item_name}")'>AI Info</button>
                     <button class="action-btn btn-comp-trigger" onclick='openCompModal("${item.item_name}")'>Comps</button>
                     <button class="action-btn btn-edit" onclick='openEditModal(${itemJson})'>Edit</button>
                     <button class="action-btn btn-sold" onclick='toggleSold(${itemJson})'>
