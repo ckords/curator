@@ -409,7 +409,7 @@
             <div class="card-value" id="cardProfit">$0.00</div>
         </div>
         <div class="card card-expenses">
-            <div class="card-label">Overhead Expenses</div>
+            <div class="card-label">Overhead & Fees</div>
             <div class="card-value" id="cardOverhead">$0.00</div>
         </div>
         <div class="card card-profit" style="border-left-color: #16a085;">
@@ -500,13 +500,14 @@
         </tbody>
     </table>
 
-    <!-- OVERHEAD EXPENSES SECTION -->
-    <h2 class="section-title">📦 Overhead & Operating Expenses</h2>
+    <!-- OVERHEAD EXPENSES & PLATFORM FEES SECTION -->
+    <h2 class="section-title">📦 Overhead, Fees & Operating Expenses</h2>
     
     <div class="form-grid" style="grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));">
         <input type="text" id="expDesc" placeholder="Expense Description (e.g. Boxes, Bubble Wrap)" required>
         <select id="expCategory">
             <option value="Supplies">Shipping Supplies</option>
+            <option value="Fees">Platform & Sales Fees</option>
             <option value="Storage">Storage & Rent</option>
             <option value="Software">Software & Subscriptions</option>
             <option value="Equipment">Tools & Hardware</option>
@@ -528,7 +529,7 @@
             </tr>
         </thead>
         <tbody id="expensesBody">
-            <!-- Expenses will populate here -->
+            <!-- Expenses and automatically calculated platform fees populate here -->
         </tbody>
     </table>
 </div>
@@ -742,7 +743,7 @@
         }
 
         allExpensesData = data || [];
-        renderExpensesTable(allExpensesData);
+        renderExpensesTable();
         updateSummaryCards(allInventoryData);
     }
 
@@ -753,30 +754,41 @@
         let totalRevenue = 0;
         let totalProfit = 0;
         let soldCount = 0;
+        let calculatedPlatformFees = 0;
 
         data.forEach(item => {
             if (item.status === 'Sold') {
-                totalRevenue += item.total_payout || 0;
+                const salePrice = item.actual_sale_price || 0;
+                const payout = item.total_payout || 0;
+                
+                totalRevenue += payout;
                 totalProfit += item.net_profit || 0;
                 soldCount++;
+
+                // Platform Fee = Actual Sale Price - Order Earnings (Payout)
+                if (salePrice > payout) {
+                    calculatedPlatformFees += (salePrice - payout);
+                }
             }
         });
 
-        let totalOverhead = 0;
+        let totalManualExpenses = 0;
         allExpensesData.forEach(exp => {
-            totalOverhead += exp.amount || 0;
+            totalManualExpenses += exp.amount || 0;
         });
 
-        const trueNet = totalProfit - totalOverhead;
+        const grandTotalOverhead = totalManualExpenses + calculatedPlatformFees;
+        const trueNet = totalProfit - totalManualExpenses; // Payout Net Profit minus manual overhead
         const profitMargin = totalRevenue > 0 ? (trueNet / totalRevenue) * 100 : 0;
 
         document.getElementById('cardRevenue').innerText = `$${totalRevenue.toFixed(2)}`;
         document.getElementById('cardProfit').innerText = `$${totalProfit.toFixed(2)}`;
-        document.getElementById('cardOverhead').innerText = `$${totalOverhead.toFixed(2)}`;
+        document.getElementById('cardOverhead').innerText = `$${grandTotalOverhead.toFixed(2)}`;
         document.getElementById('cardTrueNet').innerText = `$${trueNet.toFixed(2)}`;
         document.getElementById('cardMargin').innerText = `${profitMargin.toFixed(1)}%`;
         document.getElementById('cardSoldCount').innerText = soldCount;
 
+        renderExpensesTable(calculatedPlatformFees);
         updateSalesChart(data);
     }
 
@@ -832,16 +844,30 @@
         fetchExpenses();
     }
 
-    function renderExpensesTable(expenses) {
+    function renderExpensesTable(calculatedPlatformFees = 0) {
         const tbody = document.getElementById('expensesBody');
         tbody.innerHTML = '';
 
-        if (!expenses || expenses.length === 0) {
+        // Add auto-calculated Platform Fees line item if present
+        if (calculatedPlatformFees > 0) {
+            const autoRow = document.createElement('tr');
+            autoRow.style.background = '#fff8e7';
+            autoRow.innerHTML = `
+                <td data-label="Date">Sales Summary</td>
+                <td data-label="Description"><strong>eBay / Platform Fees & Taxes Deducted</strong></td>
+                <td data-label="Category"><span style="color:#d68910; font-weight:bold;">Platform & Sales Fees</span></td>
+                <td data-label="Amount" style="color: var(--expense); font-weight: bold;">$${calculatedPlatformFees.toFixed(2)}</td>
+                <td data-label="Actions"><em style="font-size:11px; color:#7f8c8d;">Auto-calculated</em></td>
+            `;
+            tbody.appendChild(autoRow);
+        }
+
+        if ((!allExpensesData || allExpensesData.length === 0) && calculatedPlatformFees === 0) {
             tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; color:#7f8c8d;">No overhead expenses logged.</td></tr>';
             return;
         }
 
-        expenses.forEach(exp => {
+        allExpensesData.forEach(exp => {
             const row = document.createElement('tr');
             row.innerHTML = `
                 <td data-label="Date">${exp.date_incurred}</td>
