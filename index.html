@@ -871,7 +871,11 @@
     <div class="modal-content wide-modal">
         <h2>✨ AI Identification & Market Valuation</h2>
         
-        <button onclick="startBarcodeScanner()" style="width:100%; margin-bottom:15px; background:var(--comp); color:#fff; font-size:16px;">📷 Scan Barcode / UPC</button>
+        <div style="display: flex; gap: 10px; margin-bottom: 15px;">
+            <button onclick="document.getElementById('cameraInput').click()" style="flex: 1; margin: 0; background: var(--secondary); color: #fff; font-size: 14px;">📸 Take Photo</button>
+            <button onclick="startBarcodeScanner()" style="flex: 1; margin: 0; background: var(--comp); color: #fff; font-size: 14px;">📷 Scan Barcode</button>
+        </div>
+        <input type="file" id="cameraInput" accept="image/*" capture="environment" style="display:none;" onchange="handleAnalysisImageUpload(event)">
         
         <div id="scannerContainer" class="scanner-container">
             <div id="reader" style="width:100%;"></div>
