@@ -9,8 +9,12 @@
     <link rel="icon" type="image/png" href="logo.png">
     
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
+    
     <!-- Chart.js Library via CDN -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <!-- HTML5-QRCode Library for Barcode Scanning -->
+    <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
     
     <style>
         :root {
@@ -492,6 +496,15 @@
             border-radius: 4px;
             margin-top: 10px;
         }
+        
+        .scanner-container {
+            display: none;
+            margin-bottom: 15px;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            overflow: hidden;
+        }
+        
         .comp-links-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
@@ -857,6 +870,13 @@
 <div class="modal-overlay" id="analysisModal">
     <div class="modal-content wide-modal">
         <h2>✨ AI Identification & Market Valuation</h2>
+        
+        <button onclick="startBarcodeScanner()" style="width:100%; margin-bottom:15px; background:var(--comp); color:#fff; font-size:16px;">📷 Scan Barcode / UPC</button>
+        
+        <div id="scannerContainer" class="scanner-container">
+            <div id="reader" style="width:100%;"></div>
+            <button onclick="stopBarcodeScanner()" style="width:100%; background:var(--expense); border-radius:0;">Cancel Scan</button>
+        </div>
         
         <div class="dropzone" onclick="document.getElementById('analysisFileInput').click()">
             <div id="analysisDropzoneText">📸 Click or Drop Photo to Analyze</div>
@@ -1494,6 +1514,7 @@
     const GEMINI_API_KEY = 'AQ.Ab8RN6LAF9kb1J3l2h0QJ33so76QCRKrb5gjOa4HEgXsIgx2DQ'; 
     let uploadedImageBase64 = null;
     let uploadedImageMimeType = null;
+    let html5QrCode = null;
 
     function openAnalysisModal(itemName = '') {
         const queryInput = document.getElementById('analysisQuery');
@@ -1515,6 +1536,42 @@
 
     function closeAnalysisModal() {
         document.getElementById('analysisModal').style.display = 'none';
+        stopBarcodeScanner();
+    }
+
+    // Barcode Scanner Functions
+    function startBarcodeScanner() {
+        document.getElementById('scannerContainer').style.display = 'block';
+        if (!html5QrCode) {
+            html5QrCode = new Html5Qrcode("reader");
+        }
+        
+        const config = { fps: 10, qrbox: { width: 250, height: 100 } };
+        
+        html5QrCode.start({ facingMode: "environment" }, config, 
+            (decodedText) => {
+                // Success
+                document.getElementById('analysisQuery').value = decodedText;
+                stopBarcodeScanner();
+                calculateValuationRange();
+                generateCompLinks();
+                updateLensLink();
+            },
+            (errorMessage) => {
+                // Background scan errors, ignore
+            }
+        ).catch(err => {
+            console.error("Camera error:", err);
+            alert("Camera access denied or unavailable. Ensure you are on HTTPS and have granted permissions.");
+            stopBarcodeScanner();
+        });
+    }
+
+    function stopBarcodeScanner() {
+        document.getElementById('scannerContainer').style.display = 'none';
+        if (html5QrCode && html5QrCode.isScanning) {
+            html5QrCode.stop().catch(err => console.error("Failed to stop scanner:", err));
+        }
     }
 
     function handleAnalysisImageUpload(event) {
