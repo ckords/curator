@@ -284,6 +284,19 @@
         .btn-ai-trigger { background-color: var(--ai-info); }
         .btn-ai-trigger:hover { background-color: #763e9b; }
 
+        /* Chart Filter Controls */
+        .chart-controls {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 20px;
+            align-items: center;
+            flex-wrap: wrap;
+            background: var(--card-bg);
+            padding: 10px 15px;
+            border-radius: 6px;
+            border: 1px solid var(--border-color);
+        }
+
         /* Search & Filter Controls */
         .table-controls {
             display: flex;
@@ -579,7 +592,7 @@
         @media (max-width: 768px) {
             body { padding: 10px; }
             .container { padding: 15px; }
-            .table-controls { flex-direction: column; align-items: stretch; }
+            .table-controls, .chart-controls { flex-direction: column; align-items: stretch; }
             .filters-left { flex-direction: column; align-items: stretch; width: 100%; }
             .search-input, .filter-select, .date-group { width: 100%; }
             .date-group { flex-direction: column; align-items: flex-start; }
@@ -653,7 +666,7 @@
         </div>
         <div class="card card-margin" onclick="toggleSection('chartModule')">
             <div class="card-label">
-                Profit Margin 
+                Analytics
                 <span id="cardChartToggleHint" style="font-size:9px; text-transform:none; opacity:0.8;">[Chart 📊]</span>
             </div>
             <div class="card-value" id="cardMargin">0.0%</div>
@@ -676,11 +689,33 @@
     <!-- Collapsible Sales & Profit Chart Wrapper -->
     <div class="collapsible-wrapper is-collapsed" id="chartModule">
         <div class="collapsible-header header-chart" onclick="toggleSection('chartModule')">
-            <span class="collapsible-title">📊 Revenue & Profit Analytics Chart</span>
+            <span class="collapsible-title">📊 Comprehensive Financial Analytics</span>
             <button class="toggle-btn" id="label-chartModule">▼ Show Chart</button>
         </div>
         <div class="collapsible-content">
-            <div style="height: 260px; position: relative;">
+            <div class="chart-controls">
+                <div class="date-group">
+                    <span style="font-size: 13px;">View By:</span>
+                    <select id="chartTimeframe" onchange="updateSalesChart(allInventoryData)" style="padding: 6px 10px;">
+                        <option value="week">Week</option>
+                        <option value="month" selected>Month</option>
+                        <option value="year">Year</option>
+                        <option value="custom">Custom Range</option>
+                    </select>
+                </div>
+                
+                <div id="chartCustomDates" style="display: none; gap: 10px; align-items: center;">
+                    <div class="date-group">
+                        <span>Start:</span>
+                        <input type="date" id="chartStartDate" onchange="updateSalesChart(allInventoryData)" style="padding: 6px 10px;">
+                    </div>
+                    <div class="date-group">
+                        <span>End:</span>
+                        <input type="date" id="chartEndDate" onchange="updateSalesChart(allInventoryData)" style="padding: 6px 10px;">
+                    </div>
+                </div>
+            </div>
+            <div style="height: 320px; position: relative;">
                 <canvas id="salesChart"></canvas>
             </div>
         </div>
@@ -1273,24 +1308,64 @@
         }
     }
 
-    // 7. Build and Render Monthly Sales & Profit Chart
+    // 7. Build and Render Analytics Chart
     function updateSalesChart(data) {
-        const monthlyData = {};
+        const timeframeEl = document.getElementById('chartTimeframe');
+        const timeframe = timeframeEl ? timeframeEl.value : 'month';
+        const customDiv = document.getElementById('chartCustomDates');
+        const chartStart = document.getElementById('chartStartDate') ? document.getElementById('chartStartDate').value : '';
+        const chartEnd = document.getElementById('chartEndDate') ? document.getElementById('chartEndDate').value : '';
+
+        if (customDiv) {
+            customDiv.style.display = (timeframe === 'custom') ? 'flex' : 'none';
+        }
+
+        const groupedData = {};
 
         data.forEach(item => {
             if (item.status === 'Sold' && item.date_listed) {
-                const monthKey = item.date_listed.substring(0, 7);
-                if (!monthlyData[monthKey]) {
-                    monthlyData[monthKey] = { revenue: 0, profit: 0 };
+                if (timeframe === 'custom') {
+                    if (chartStart && item.date_listed < chartStart) return;
+                    if (chartEnd && item.date_listed > chartEnd) return;
                 }
-                monthlyData[monthKey].revenue += item.total_payout || 0;
-                monthlyData[monthKey].profit += item.net_profit || 0;
+
+                let key = '';
+                if (timeframe === 'year') {
+                    key = item.date_listed.substring(0, 4);
+                } else if (timeframe === 'month') {
+                    key = item.date_listed.substring(0, 7);
+                } else if (timeframe === 'week') {
+                    const d = new Date(item.date_listed + 'T00:00:00');
+                    const day = d.getDay();
+                    const diff = d.getDate() - day;
+                    const weekStart = new Date(d.setDate(diff));
+                    key = weekStart.toISOString().substring(0, 10) + ' (Wk)';
+                } else if (timeframe === 'custom') {
+                    key = item.date_listed.substring(0, 10);
+                }
+
+                if (!groupedData[key]) {
+                    groupedData[key] = { gross: 0, payout: 0, profit: 0, cogs: 0, fees: 0 };
+                }
+                
+                const gross = item.actual_sale_price || 0;
+                const payout = item.total_payout || 0;
+                
+                groupedData[key].gross += gross;
+                groupedData[key].payout += payout;
+                groupedData[key].profit += item.net_profit || 0;
+                groupedData[key].cogs += item.item_cost || 0;
+                groupedData[key].fees += (gross > payout ? gross - payout : 0);
             }
         });
 
-        const sortedMonths = Object.keys(monthlyData).sort();
-        const revenueSeries = sortedMonths.map(m => monthlyData[m].revenue);
-        const profitSeries = sortedMonths.map(m => monthlyData[m].profit);
+        const sortedKeys = Object.keys(groupedData).sort();
+        
+        const grossSeries = sortedKeys.map(k => groupedData[k].gross);
+        const payoutSeries = sortedKeys.map(k => groupedData[k].payout);
+        const profitSeries = sortedKeys.map(k => groupedData[k].profit);
+        const cogsSeries = sortedKeys.map(k => groupedData[k].cogs);
+        const feesSeries = sortedKeys.map(k => groupedData[k].fees);
 
         const ctx = document.getElementById('salesChart').getContext('2d');
 
@@ -1306,11 +1381,21 @@
         chartInstance = new Chart(ctx, {
             type: 'line',
             data: {
-                labels: sortedMonths.length ? sortedMonths : ['No Data'],
+                labels: sortedKeys.length ? sortedKeys : ['No Data'],
                 datasets: [
                     {
-                        label: 'Revenue (Payouts)',
-                        data: revenueSeries.length ? revenueSeries : [0],
+                        label: 'Gross Sales',
+                        data: grossSeries.length ? grossSeries : [0],
+                        borderColor: '#8e44ad',
+                        backgroundColor: 'rgba(142, 68, 173, 0.1)',
+                        borderDash: [5, 5],
+                        tension: 0.3,
+                        borderWidth: 2,
+                        hidden: true
+                    },
+                    {
+                        label: 'Net Payouts',
+                        data: payoutSeries.length ? payoutSeries : [0],
                         borderColor: '#2980b9',
                         backgroundColor: 'rgba(41, 128, 185, 0.1)',
                         fill: true,
@@ -1325,6 +1410,22 @@
                         fill: true,
                         tension: 0.3,
                         borderWidth: 2
+                    },
+                    {
+                        label: 'COGS',
+                        data: cogsSeries.length ? cogsSeries : [0],
+                        borderColor: '#f39c12',
+                        backgroundColor: 'rgba(243, 156, 18, 0.1)',
+                        tension: 0.3,
+                        borderWidth: 2
+                    },
+                    {
+                        label: 'Fees & Taxes',
+                        data: feesSeries.length ? feesSeries : [0],
+                        borderColor: '#e74c3c',
+                        backgroundColor: 'rgba(231, 76, 60, 0.1)',
+                        tension: 0.3,
+                        borderWidth: 2
                     }
                 ]
             },
@@ -1334,12 +1435,13 @@
                 plugins: {
                     title: {
                         display: true,
-                        text: 'Monthly Revenue & Profit Overview',
+                        text: 'Comprehensive Analytics Overview',
                         color: chartTitleColor,
                         font: { size: 14, weight: 'bold' }
                     },
                     legend: {
-                        labels: { color: tickColor }
+                        labels: { color: tickColor },
+                        position: 'bottom'
                     }
                 },
                 scales: {
