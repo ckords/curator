@@ -937,7 +937,7 @@
         <div class="valuation-box">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
                 <div class="valuation-header" style="margin-bottom:0;">📊 Estimated Market Value Range</div>
-                <span id="valSampleSize" style="font-size:11px; color: var(--muted-text); font-weight:bold;">Based on ~30 sold comps</span>
+                <a id="valSampleSize" href="#" target="_blank" style="font-size:11px; color: var(--payout); font-weight:bold; text-decoration: underline; cursor: pointer;">Based on ~30 sold comps</a>
             </div>
             
             <div class="value-range-grid">
@@ -1748,6 +1748,11 @@ Return concise HTML bullet points covering:
         document.getElementById('linkEbay').href = ebayUrl;
         document.getElementById('linkFB').href = fbUrl;
         document.getElementById('linkGoogle').href = googleUrl;
+        
+        const sampleElement = document.getElementById('valSampleSize');
+        if (sampleElement) {
+            sampleElement.href = ebayUrl;
+        }
     }
 
     function applySpecificPrice(type) {
