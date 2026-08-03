@@ -378,12 +378,22 @@
             border-left: 4px solid var(--drop) !important;
         }
 
+        /* NEW: Action Buttons 2x2 Grid */
+        .action-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 4px;
+            min-width: 120px; /* Ensures buttons never squash too much */
+        }
         .action-btn {
             font-size: 11px;
-            padding: 5px 7px;
-            margin-right: 2px;
+            padding: 5px 2px;
             border-radius: 3px;
             color: white;
+            margin: 0;
+            width: 100%;
+            box-sizing: border-box;
+            text-align: center;
         }
         .btn-edit { background-color: #2980b9; }
         .btn-edit:hover { background-color: #2471a3; }
@@ -2145,10 +2155,12 @@ Return concise HTML bullet points covering:
                     <td data-label="Date Reduced">${dropDateStr}</td>
                     <td data-label="Days Since Drop" class="drop-counter">⚡ ${dropDays} Days</td>
                     <td data-label="Actions">
-                        <button class="action-btn btn-ai-trigger" onclick='openAnalysisModal("${item.item_name.replace(/"/g, '&quot;')}")'>Analyze</button>
-                        <button class="action-btn btn-edit" onclick='openEditModal(${itemJson})'>Edit</button>
-                        <button class="action-btn btn-sold" onclick='toggleSold(${itemJson})'>Sold</button>
-                        <button class="action-btn btn-delete" onclick="deleteItem(${item.id}, '${item.item_name.replace(/"/g, '&quot;')}')">Delete</button>
+                        <div class="action-grid">
+                            <button class="action-btn btn-ai-trigger" onclick='openAnalysisModal("${item.item_name.replace(/"/g, '&quot;')}")'>Analyze</button>
+                            <button class="action-btn btn-edit" onclick='openEditModal(${itemJson})'>Edit</button>
+                            <button class="action-btn btn-sold" onclick='toggleSold(${itemJson})'>Sold</button>
+                            <button class="action-btn btn-delete" onclick="deleteItem(${item.id}, '${item.item_name.replace(/"/g, '&quot;')}')">Delete</button>
+                        </div>
                     </td>
                 `;
                 activeTbody.appendChild(row);
@@ -2180,10 +2192,12 @@ Return concise HTML bullet points covering:
                     <td data-label="Net Profit" class="profit-text">$${(item.net_profit || 0).toFixed(2)}</td>
                     <td data-label="Date Listed">${item.date_listed}</td>
                     <td data-label="Actions">
-                        <button class="action-btn btn-ai-trigger" onclick='openAnalysisModal("${item.item_name.replace(/"/g, '&quot;')}")'>Analyze</button>
-                        <button class="action-btn btn-edit" onclick='openEditModal(${itemJson})'>Edit</button>
-                        <button class="action-btn btn-sold" onclick='toggleSold(${itemJson})'>Reopen</button>
-                        <button class="action-btn btn-delete" onclick="deleteItem(${item.id}, '${item.item_name.replace(/"/g, '&quot;')}')">Delete</button>
+                        <div class="action-grid">
+                            <button class="action-btn btn-ai-trigger" onclick='openAnalysisModal("${item.item_name.replace(/"/g, '&quot;')}")'>Analyze</button>
+                            <button class="action-btn btn-edit" onclick='openEditModal(${itemJson})'>Edit</button>
+                            <button class="action-btn btn-sold" onclick='toggleSold(${itemJson})'>Reopen</button>
+                            <button class="action-btn btn-delete" onclick="deleteItem(${item.id}, '${item.item_name.replace(/"/g, '&quot;')}')">Delete</button>
+                        </div>
                     </td>
                 `;
                 soldTbody.appendChild(row);
