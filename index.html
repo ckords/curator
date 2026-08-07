@@ -12,6 +12,8 @@
     
     <!-- Chart.js Library via CDN -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Chart.js Datalabels Plugin via CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0"></script>
     
     <!-- HTML5-QRCode Library for Barcode Scanning -->
     <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
@@ -264,7 +266,7 @@
         }
         .is-collapsed .collapsible-content { display: none; }
 
-        /* FORM GRID & EXPLICIT BUTTON COLOR RULES */
+        /* FORM GRID & BUTTON COLOR RULES */
         .form-grid {
             display: grid;
             grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -776,8 +778,8 @@
                 <div class="date-group">
                     <span style="font-size: 13px;">View By:</span>
                     <select id="chartTimeframe" onchange="updateSalesChart(allInventoryData)" style="padding: 6px 10px;">
-                        <option value="week">Week</option>
-                        <option value="month" selected>Month</option>
+                        <option value="week" selected>Week</option>
+                        <option value="month">Month</option>
                         <option value="year">Year</option>
                         <option value="custom">Custom Range</option>
                     </select>
@@ -794,7 +796,7 @@
                     </div>
                 </div>
             </div>
-            <div style="height: 320px; position: relative;">
+            <div style="height: 350px; position: relative;">
                 <canvas id="salesChart"></canvas>
             </div>
         </div>
@@ -1175,6 +1177,11 @@
 
     let calculatedCompPrices = { low: 0, mid: 0, high: 0, rec: 0 };
 
+    // Register ChartDataLabels plugin
+    if (typeof ChartDataLabels !== 'undefined') {
+        Chart.register(ChartDataLabels);
+    }
+
     // --- DARK MODE THEME TOGGLE LOGIC ---
     function toggleDarkMode() {
         const body = document.body;
@@ -1183,7 +1190,6 @@
         localStorage.setItem('curatorTheme', isDark ? 'dark' : 'light');
         document.getElementById('themeToggle').innerText = isDark ? '☀️' : '🌙';
         
-        // Re-render chart with correct text colors for current theme
         if (allInventoryData.length > 0) {
             updateSalesChart(allInventoryData);
         }
@@ -1450,10 +1456,22 @@
         }
     }
 
-    // 7. Build and Render Analytics Chart
+    // Helper functions for Date sequence generation
+    function getSundayOfWeek(d) {
+        const date = new Date(d);
+        const day = date.getDay();
+        const diff = date.getDate() - day;
+        return new Date(date.setDate(diff));
+    }
+
+    function formatDateIso(d) {
+        return d.toISOString().substring(0, 10);
+    }
+
+    // 7. Build and Render Grouped Bar Analytics Chart with Continuous Date Sequence
     function updateSalesChart(data) {
         const timeframeEl = document.getElementById('chartTimeframe');
-        const timeframe = timeframeEl ? timeframeEl.value : 'month';
+        const timeframe = timeframeEl ? timeframeEl.value : 'week';
         const customDiv = document.getElementById('chartCustomDates');
         const chartStart = document.getElementById('chartStartDate') ? document.getElementById('chartStartDate').value : '';
         const chartEnd = document.getElementById('chartEndDate') ? document.getElementById('chartEndDate').value : '';
@@ -1462,10 +1480,61 @@
             customDiv.style.display = (timeframe === 'custom') ? 'flex' : 'none';
         }
 
-        const groupedData = {};
+        const soldItems = data.filter(item => item.status === 'Sold' && item.date_listed);
+        
+        let labels = [];
+        const aggregated = {};
 
-        data.forEach(item => {
-            if (item.status === 'Sold' && item.date_listed) {
+        if (soldItems.length > 0) {
+            let dates = soldItems.map(i => new Date(i.date_listed + 'T00:00:00')).sort((a, b) => a - b);
+            let minDate = dates[0];
+            let maxDate = dates[dates.length - 1];
+
+            if (timeframe === 'custom') {
+                if (chartStart) minDate = new Date(chartStart + 'T00:00:00');
+                if (chartEnd) maxDate = new Date(chartEnd + 'T00:00:00');
+            }
+
+            if (timeframe === 'week') {
+                let current = getSundayOfWeek(minDate);
+                const last = getSundayOfWeek(maxDate);
+
+                while (current <= last) {
+                    const labelStr = formatDateIso(current) + ' (Wk)';
+                    labels.push(labelStr);
+                    aggregated[labelStr] = { gross: 0, payout: 0, profit: 0, cogs: 0, fees: 0 };
+                    current.setDate(current.getDate() + 7);
+                }
+            } else if (timeframe === 'month') {
+                let current = new Date(minDate.getFullYear(), minDate.getMonth(), 1);
+                const last = new Date(maxDate.getFullYear(), maxDate.getMonth(), 1);
+
+                while (current <= last) {
+                    const monthStr = formatDateIso(current).substring(0, 7);
+                    labels.push(monthStr);
+                    aggregated[monthStr] = { gross: 0, payout: 0, profit: 0, cogs: 0, fees: 0 };
+                    current.setMonth(current.getMonth() + 1);
+                }
+            } else if (timeframe === 'year') {
+                let startYr = minDate.getFullYear();
+                const endYr = maxDate.getFullYear();
+
+                for (let y = startYr; y <= endYr; y++) {
+                    const yStr = String(y);
+                    labels.push(yStr);
+                    aggregated[yStr] = { gross: 0, payout: 0, profit: 0, cogs: 0, fees: 0 };
+                }
+            } else if (timeframe === 'custom') {
+                let current = new Date(minDate);
+                while (current <= maxDate) {
+                    const dStr = formatDateIso(current);
+                    labels.push(dStr);
+                    aggregated[dStr] = { gross: 0, payout: 0, profit: 0, cogs: 0, fees: 0 };
+                    current.setDate(current.getDate() + 1);
+                }
+            }
+
+            soldItems.forEach(item => {
                 if (timeframe === 'custom') {
                     if (chartStart && item.date_listed < chartStart) return;
                     if (chartEnd && item.date_listed > chartEnd) return;
@@ -1478,36 +1547,30 @@
                     key = item.date_listed.substring(0, 7);
                 } else if (timeframe === 'week') {
                     const d = new Date(item.date_listed + 'T00:00:00');
-                    const day = d.getDay();
-                    const diff = d.getDate() - day;
-                    const weekStart = new Date(d.setDate(diff));
-                    key = weekStart.toISOString().substring(0, 10) + ' (Wk)';
+                    const sunday = getSundayOfWeek(d);
+                    key = formatDateIso(sunday) + ' (Wk)';
                 } else if (timeframe === 'custom') {
                     key = item.date_listed.substring(0, 10);
                 }
 
-                if (!groupedData[key]) {
-                    groupedData[key] = { gross: 0, payout: 0, profit: 0, cogs: 0, fees: 0 };
+                if (aggregated[key]) {
+                    const gross = item.actual_sale_price || 0;
+                    const payout = item.total_payout || 0;
+                    
+                    aggregated[key].gross += gross;
+                    aggregated[key].payout += payout;
+                    aggregated[key].profit += item.net_profit || 0;
+                    aggregated[key].cogs += item.item_cost || 0;
+                    aggregated[key].fees += (gross > payout ? gross - payout : 0);
                 }
-                
-                const gross = item.actual_sale_price || 0;
-                const payout = item.total_payout || 0;
-                
-                groupedData[key].gross += gross;
-                groupedData[key].payout += payout;
-                groupedData[key].profit += item.net_profit || 0;
-                groupedData[key].cogs += item.item_cost || 0;
-                groupedData[key].fees += (gross > payout ? gross - payout : 0);
-            }
-        });
+            });
+        }
 
-        const sortedKeys = Object.keys(groupedData).sort();
-        
-        const grossSeries = sortedKeys.map(k => groupedData[k].gross);
-        const payoutSeries = sortedKeys.map(k => groupedData[k].payout);
-        const profitSeries = sortedKeys.map(k => groupedData[k].profit);
-        const cogsSeries = sortedKeys.map(k => groupedData[k].cogs);
-        const feesSeries = sortedKeys.map(k => groupedData[k].fees);
+        const grossSeries = labels.map(l => aggregated[l] ? aggregated[l].gross : 0);
+        const payoutSeries = labels.map(l => aggregated[l] ? aggregated[l].payout : 0);
+        const profitSeries = labels.map(l => aggregated[l] ? aggregated[l].profit : 0);
+        const cogsSeries = labels.map(l => aggregated[l] ? aggregated[l].cogs : 0);
+        const feesSeries = labels.map(l => aggregated[l] ? aggregated[l].fees : 0);
 
         const ctx = document.getElementById('salesChart').getContext('2d');
 
@@ -1521,52 +1584,39 @@
         const tickColor = isDark ? '#aaa' : '#666';
 
         chartInstance = new Chart(ctx, {
-            type: 'line',
+            type: 'bar',
             data: {
-                labels: sortedKeys.length ? sortedKeys : ['No Data'],
+                labels: labels.length ? labels : ['No Data'],
                 datasets: [
                     {
                         label: 'Gross Sales',
                         data: grossSeries.length ? grossSeries : [0],
-                        borderColor: '#8e44ad',
-                        backgroundColor: 'rgba(142, 68, 173, 0.1)',
-                        borderDash: [5, 5],
-                        tension: 0.3,
-                        borderWidth: 2
+                        backgroundColor: '#8e44ad',
+                        borderRadius: 4
                     },
                     {
                         label: 'Net Payouts',
                         data: payoutSeries.length ? payoutSeries : [0],
-                        borderColor: '#2980b9',
-                        backgroundColor: 'rgba(41, 128, 185, 0.1)',
-                        fill: true,
-                        tension: 0.3,
-                        borderWidth: 2
+                        backgroundColor: '#2980b9',
+                        borderRadius: 4
                     },
                     {
                         label: 'Net Profit',
                         data: profitSeries.length ? profitSeries : [0],
-                        borderColor: '#27ae60',
-                        backgroundColor: 'rgba(39, 174, 96, 0.1)',
-                        fill: true,
-                        tension: 0.3,
-                        borderWidth: 2
+                        backgroundColor: '#27ae60',
+                        borderRadius: 4
                     },
                     {
                         label: 'COGS',
                         data: cogsSeries.length ? cogsSeries : [0],
-                        borderColor: '#f39c12',
-                        backgroundColor: 'rgba(243, 156, 18, 0.1)',
-                        tension: 0.3,
-                        borderWidth: 2
+                        backgroundColor: '#f39c12',
+                        borderRadius: 4
                     },
                     {
                         label: 'Fees & Taxes',
                         data: feesSeries.length ? feesSeries : [0],
-                        borderColor: '#e74c3c',
-                        backgroundColor: 'rgba(231, 76, 60, 0.1)',
-                        tension: 0.3,
-                        borderWidth: 2
+                        backgroundColor: '#e74c3c',
+                        borderRadius: 4
                     }
                 ]
             },
@@ -1576,13 +1626,26 @@
                 plugins: {
                     title: {
                         display: true,
-                        text: 'Comprehensive Analytics Overview',
+                        text: 'Comprehensive Financial Analytics (Bars)',
                         color: chartTitleColor,
                         font: { size: 14, weight: 'bold' }
                     },
                     legend: {
                         labels: { color: tickColor },
                         position: 'bottom'
+                    },
+                    datalabels: {
+                        anchor: 'end',
+                        align: 'start',
+                        color: isDark ? '#ffffff' : '#000000',
+                        font: { size: 9, weight: 'bold' },
+                        formatter: (val) => val > 0 ? '$' + val.toFixed(0) : '',
+                        clip: false
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: (context) => `${context.dataset.label}: $${context.parsed.y.toFixed(2)}`
+                        }
                     }
                 },
                 scales: {
