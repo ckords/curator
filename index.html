@@ -1566,7 +1566,7 @@
         updateSalesChart(allInventoryData);
     }
 
-    // 7. Build and Render Grouped Bar Analytics Chart with Dynamic Line Overlay & Drill Down
+    // 7. Build and Render Grouped Bar Analytics Chart with Dynamic Line Overlay & True Business Net Bar
     function updateSalesChart(data) {
         const timeframeEl = document.getElementById('chartTimeframe');
         let timeframe = timeframeEl ? timeframeEl.value : 'week';
@@ -1585,11 +1585,9 @@
         // Apply Drill Down Filter if active
         if (drillDownFilter) {
             if (drillDownFilter.type === 'week') {
-                // Show weeks of specific month
                 soldItems = soldItems.filter(i => i.date_listed.startsWith(drillDownFilter.value));
                 timeframe = 'week';
             } else if (drillDownFilter.type === 'month') {
-                // Show months of specific year
                 soldItems = soldItems.filter(i => i.date_listed.startsWith(drillDownFilter.value));
                 timeframe = 'month';
             }
@@ -1615,7 +1613,7 @@
                 while (current <= last) {
                     const labelStr = formatDateIso(current) + ' (Wk)';
                     labels.push(labelStr);
-                    aggregated[labelStr] = { gross: 0, payout: 0, profit: 0, cogs: 0, fees: 0 };
+                    aggregated[labelStr] = { gross: 0, payout: 0, profit: 0, trueNet: 0, cogs: 0, fees: 0 };
                     current.setDate(current.getDate() + 7);
                 }
             } else if (timeframe === 'month') {
@@ -1625,7 +1623,7 @@
                 while (current <= last) {
                     const monthStr = formatDateIso(current).substring(0, 7);
                     labels.push(monthStr);
-                    aggregated[monthStr] = { gross: 0, payout: 0, profit: 0, cogs: 0, fees: 0 };
+                    aggregated[monthStr] = { gross: 0, payout: 0, profit: 0, trueNet: 0, cogs: 0, fees: 0 };
                     current.setMonth(current.getMonth() + 1);
                 }
             } else if (timeframe === 'year') {
@@ -1635,17 +1633,22 @@
                 for (let y = startYr; y <= endYr; y++) {
                     const yStr = String(y);
                     labels.push(yStr);
-                    aggregated[yStr] = { gross: 0, payout: 0, profit: 0, cogs: 0, fees: 0 };
+                    aggregated[yStr] = { gross: 0, payout: 0, profit: 0, trueNet: 0, cogs: 0, fees: 0 };
                 }
             } else if (timeframe === 'custom') {
                 let current = new Date(minDate);
                 while (current <= maxDate) {
                     const dStr = formatDateIso(current);
                     labels.push(dStr);
-                    aggregated[dStr] = { gross: 0, payout: 0, profit: 0, cogs: 0, fees: 0 };
+                    aggregated[dStr] = { gross: 0, payout: 0, profit: 0, trueNet: 0, cogs: 0, fees: 0 };
                     current.setDate(current.getDate() + 1);
                 }
             }
+
+            // Calculate total overhead to distribute proportionally across active periods
+            let totalManualExpenses = 0;
+            allExpensesData.forEach(exp => { totalManualExpenses += exp.amount || 0; });
+            const overheadPerPeriod = labels.length > 0 ? (totalManualExpenses / labels.length) : 0;
 
             soldItems.forEach(item => {
                 if (timeframe === 'custom') {
@@ -1669,12 +1672,20 @@
                 if (aggregated[key]) {
                     const gross = item.actual_sale_price || 0;
                     const payout = item.total_payout || 0;
+                    const netProfit = item.net_profit || 0;
                     
                     aggregated[key].gross += gross;
                     aggregated[key].payout += payout;
-                    aggregated[key].profit += item.net_profit || 0;
+                    aggregated[key].profit += netProfit;
                     aggregated[key].cogs += item.item_cost || 0;
                     aggregated[key].fees += (gross > payout ? gross - payout : 0);
+                }
+            });
+
+            // Compute True Business Net for each period (Net Profit minus allocated Overhead)
+            labels.forEach(l => {
+                if (aggregated[l]) {
+                    aggregated[l].trueNet = Math.max(0, aggregated[l].profit - overheadPerPeriod);
                 }
             });
         }
@@ -1682,6 +1693,7 @@
         const grossSeries = labels.map(l => aggregated[l] ? aggregated[l].gross : 0);
         const payoutSeries = labels.map(l => aggregated[l] ? aggregated[l].payout : 0);
         const profitSeries = labels.map(l => aggregated[l] ? aggregated[l].profit : 0);
+        const trueNetSeries = labels.map(l => aggregated[l] ? aggregated[l].trueNet : 0);
         const cogsSeries = labels.map(l => aggregated[l] ? aggregated[l].cogs : 0);
         const feesSeries = labels.map(l => aggregated[l] ? aggregated[l].fees : 0);
 
@@ -1713,9 +1725,16 @@
             },
             {
                 type: 'bar',
-                label: 'Net Profit',
+                label: 'Sales Net Profit',
                 data: profitSeries.length ? profitSeries : [0],
                 backgroundColor: '#27ae60',
+                borderRadius: 4
+            },
+            {
+                type: 'bar',
+                label: 'True Business Net',
+                data: trueNetSeries.length ? trueNetSeries : [0],
+                backgroundColor: '#16a085',
                 borderRadius: 4
             },
             {
@@ -1763,6 +1782,17 @@
                     label: 'Profit Trend',
                     data: profitSeries,
                     borderColor: '#27ae60',
+                    borderWidth: 2,
+                    fill: false,
+                    tension: 0.3,
+                    pointRadius: 3,
+                    datalabels: { display: false }
+                },
+                {
+                    type: 'line',
+                    label: 'True Net Trend',
+                    data: trueNetSeries,
+                    borderColor: '#16a085',
                     borderWidth: 2,
                     fill: false,
                     tension: 0.3,
