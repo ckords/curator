@@ -259,22 +259,26 @@
         }
         .is-collapsed .collapsible-content { display: none; }
 
+        /* RESTRUCTURED FORM GRID */
         .form-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+            grid-template-columns: 1fr 1fr;
             gap: 12px;
             margin-bottom: 25px;
         }
-        input, select, button {
-            padding: 10px;
+        .form-grid input, .form-grid select, .form-grid button {
+            padding: 12px;
             border: 1px solid var(--input-border);
-            border-radius: 4px;
+            border-radius: 6px;
             font-family: inherit;
             font-size: 14px;
             box-sizing: border-box;
             background: var(--input-bg);
             color: var(--text);
             color-scheme: light dark;
+        }
+        .form-full {
+            grid-column: span 2;
         }
         button {
             background-color: var(--secondary);
@@ -287,6 +291,8 @@
         button:hover { background-color: #128f76; }
         .btn-ai-trigger { background-color: var(--ai-info); }
         .btn-ai-trigger:hover { background-color: #763e9b; }
+        .btn-import { background-color: var(--payout); }
+        .btn-import:hover { background-color: #1b5e91; }
 
         /* Chart Filter Controls */
         .chart-controls {
@@ -378,12 +384,12 @@
             border-left: 4px solid var(--drop) !important;
         }
 
-        /* NEW: Action Buttons 2x2 Grid */
+        /* Action Buttons 2x2 Grid */
         .action-grid {
             display: grid;
             grid-template-columns: 1fr 1fr;
             gap: 4px;
-            min-width: 120px; /* Ensures buttons never squash too much */
+            min-width: 120px;
         }
         .action-btn {
             font-size: 11px;
@@ -744,18 +750,23 @@
         </div>
     </div>
 
-    <!-- Inventory Input Form -->
+    <!-- Inventory Input Form (Row 1: Title full width | Row 2: Platform/Cost | Row 3: List Price/Date | Row 4: Buttons) -->
     <div class="form-grid">
-        <input type="text" id="itemName" placeholder="Item Name" required>
+        <input type="text" id="itemName" class="form-full" placeholder="Item Name" required>
+        
         <select id="platform">
             <option value="eBay">eBay</option>
             <option value="Facebook">Facebook Marketplace</option>
         </select>
         <input type="number" id="itemCost" placeholder="Cost ($)" step="0.01" required>
+
         <input type="number" id="listPrice" placeholder="List Price ($)" step="0.01" required>
         <input type="date" id="dateListed" required>
-        <button onclick="addListing()">Add Item</button>
-        <button class="btn-ai-trigger" onclick="openAnalysisModal()">✨ Analyze Item</button>
+
+        <button class="btn-ai-trigger" onclick="openAnalysisModal()">✨ Analyze</button>
+        <button onclick="addListing()">Add</button>
+        
+        <button class="btn-import form-full" onclick="openImportModal()">📥 Import Listing from eBay / File</button>
     </div>
 
     <!-- Inventory Search & Filter Controls -->
@@ -874,6 +885,24 @@
             <!-- Expenses and automatically calculated platform fees populate here -->
         </tbody>
     </table>
+</div>
+
+<!-- IMPORT LISTING MODAL -->
+<div class="modal-overlay" id="importModal">
+    <div class="modal-content">
+        <h2>📥 Import Listing</h2>
+        <p style="font-size:12px; color: var(--muted-text);">Paste an eBay listing link or listing details to autofill your inventory form:</p>
+        
+        <div class="modal-group">
+            <label for="importUrl">eBay Item Link / URL or JSON Data</label>
+            <input type="text" id="importUrl" placeholder="https://www.ebay.com/itm/123456789">
+        </div>
+
+        <div class="modal-actions">
+            <button class="btn-cancel" onclick="closeImportModal()">Cancel</button>
+            <button onclick="processListingImport()">Import Item</button>
+        </div>
+    </div>
 </div>
 
 <!-- SINGLE UNIFIED MODAL FOR AI ANALYSIS & COMPS -->
@@ -1130,6 +1159,35 @@
         fetchListings();
         fetchExpenses();
     });
+
+    // Import Listing Helper Functions
+    function openImportModal() {
+        document.getElementById('importUrl').value = '';
+        document.getElementById('importModal').style.display = 'flex';
+    }
+
+    function closeImportModal() {
+        document.getElementById('importModal').style.display = 'none';
+    }
+
+    function processListingImport() {
+        const rawInput = document.getElementById('importUrl').value.trim();
+        if (!rawInput) {
+            alert('Please paste an eBay URL or item title.');
+            return;
+        }
+
+        let title = rawInput;
+        if (rawInput.includes('ebay.com/itm/')) {
+            const parts = rawInput.split('/itm/')[1].split('?')[0].split('/');
+            title = parts[0].replace(/[-_]/g, ' ');
+        }
+
+        document.getElementById('itemName').value = title;
+        document.getElementById('platform').value = 'eBay';
+        closeImportModal();
+        openAnalysisModal(title);
+    }
 
     // 4. Fetch listings from Supabase
     async function fetchListings() {
