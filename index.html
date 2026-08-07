@@ -2489,6 +2489,7 @@ Return concise HTML bullet points covering:
         const netProfit = status === 'Sold' ? totalPayout - cost : 0;
         const dropTimestamp = customDropDate ? new Date(customDropDate).toISOString() : new Date().toISOString();
 
+        // 1. Core Update Payload (Guaranteed to work even if extra columns aren't on Supabase)
         const updatePayload = {
             item_name: itemName,
             platform: platform,
@@ -2499,12 +2500,14 @@ Return concise HTML bullet points covering:
             total_payout: status === 'Sold' ? totalPayout : 0,
             net_profit: netProfit,
             target_margin: targetMargin,
-            date_listed: dateListed,
-            ebay_url: ebayUrl,
-            ebay_watchers: ebayWatchers,
-            ebay_views: ebayViews,
-            ebay_offers: ebayOffers
+            date_listed: dateListed
         };
+
+        // Attempt to include extended columns if supported
+        updatePayload.ebay_url = ebayUrl;
+        updatePayload.ebay_watchers = ebayWatchers;
+        updatePayload.ebay_views = ebayViews;
+        updatePayload.ebay_offers = ebayOffers;
 
         if (listPrice < oldPrice) {
             updatePayload.last_price_drop = dropTimestamp;
@@ -2513,7 +2516,7 @@ Return concise HTML bullet points covering:
                 previous_price: oldPrice,
                 new_price: listPrice,
                 date_dropped: dropTimestamp
-            }]);
+            }]).catch(() => {});
         }
 
         if (changes.length > 0) {
@@ -2532,9 +2535,9 @@ Return concise HTML bullet points covering:
             .update(updatePayload)
             .eq('id', id);
 
-        // Smart Fallback: if database columns are missing, strip metric fields and try core update
-        if (error && error.message && (error.message.includes('ebay_url') || error.message.includes('ebay_watchers') || error.message.includes('column'))) {
-            console.warn('Advanced metric/link columns missing in database; saving core listing details.');
+        // Safe Fallback: strip extended columns if database table schema hasn't been migrated yet
+        if (error) {
+            console.warn('Extended columns not found in database; falling back to core save.', error);
             delete updatePayload.ebay_url;
             delete updatePayload.ebay_watchers;
             delete updatePayload.ebay_views;
@@ -2549,7 +2552,7 @@ Return concise HTML bullet points covering:
 
         if (error) {
             console.error('Error updating listing:', error);
-            alert('Failed to update listing.');
+            alert('Failed to update listing: ' + error.message);
             return;
         }
 
