@@ -70,6 +70,10 @@
             --action-needed: #42301c;
         }
 
+        *, *:before, *:after {
+            box-sizing: border-box;
+        }
+
         body {
             font-family: 'Inter', sans-serif; 
             background-color: var(--background);
@@ -80,6 +84,7 @@
             flex-direction: column;
             align-items: center;
             transition: background-color 0.3s, color 0.3s;
+            overflow-x: hidden;
         }
         .container {
             width: 100%;
@@ -259,60 +264,43 @@
         }
         .is-collapsed .collapsible-content { display: none; }
 
-        /* FORM GRID & INPUT STYLING */
+        /* RESTRUCTURED FORM GRID (Prevent Horizontal Scroll) */
         .form-grid {
             display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 12px;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 10px;
             margin-bottom: 25px;
+            width: 100%;
         }
-        .form-grid input, .form-grid select {
-            padding: 12px;
+        .form-grid input, .form-grid select, .form-grid button {
+            padding: 10px;
             border: 1px solid var(--input-border);
             border-radius: 6px;
             font-family: inherit;
-            font-size: 14px;
+            font-size: 13px;
             box-sizing: border-box;
             background: var(--input-bg);
             color: var(--text);
             color-scheme: light dark;
+            width: 100%;
+            min-width: 0;
         }
         .form-full {
             grid-column: span 2;
         }
-
-        /* BUTTON SPECIFICITY FIX */
         button {
-            padding: 12px;
-            border: none;
-            border-radius: 6px;
-            font-family: inherit;
-            font-size: 14px;
-            box-sizing: border-box;
             background-color: var(--secondary);
-            color: #ffffff !important;
+            color: white;
+            border: none;
             cursor: pointer;
             font-weight: bold;
-            transition: background 0.3s, opacity 0.2s;
+            transition: background 0.3s;
         }
-        button:hover { 
-            opacity: 0.9;
-            background-color: #128f76; 
-        }
-        .btn-ai-trigger { 
-            background-color: var(--ai-info) !important; 
-            color: #ffffff !important;
-        }
-        .btn-ai-trigger:hover { 
-            background-color: #763e9b !important; 
-        }
-        .btn-import { 
-            background-color: var(--payout) !important; 
-            color: #ffffff !important;
-        }
-        .btn-import:hover { 
-            background-color: #1b5e91 !important; 
-        }
+        button:hover { background-color: #128f76; }
+        .btn-ai-trigger { background-color: var(--ai-info); }
+        .btn-ai-trigger:hover { background-color: #763e9b; }
+        .btn-import { background-color: var(--payout); }
+        .btn-import:hover { background-color: #1b5e91; }
 
         /* Chart Filter Controls */
         .chart-controls {
@@ -415,18 +403,18 @@
             font-size: 11px;
             padding: 5px 2px;
             border-radius: 3px;
-            color: white !important;
+            color: white;
             margin: 0;
             width: 100%;
             box-sizing: border-box;
             text-align: center;
         }
-        .btn-edit { background-color: #2980b9 !important; }
-        .btn-edit:hover { background-color: #2471a3 !important; }
-        .btn-sold { background-color: #27ae60 !important; }
-        .btn-sold:hover { background-color: #1e8449 !important; }
-        .btn-delete { background-color: #e74c3c !important; }
-        .btn-delete:hover { background-color: #c0392b !important; }
+        .btn-edit { background-color: #2980b9; }
+        .btn-edit:hover { background-color: #2471a3; }
+        .btn-sold { background-color: #27ae60; }
+        .btn-sold:hover { background-color: #1e8449; }
+        .btn-delete { background-color: #e74c3c; }
+        .btn-delete:hover { background-color: #c0392b; }
 
         /* Modals */
         .modal-overlay {
@@ -481,7 +469,7 @@
             gap: 10px;
             margin-top: 20px;
         }
-        .btn-cancel { background-color: #95a5a6 !important; color: white !important; }
+        .btn-cancel { background-color: #95a5a6; color: white; }
 
         /* History Log Container in Edit Modal */
         .history-log-box {
@@ -560,10 +548,10 @@
             transition: opacity 0.2s;
         }
         .comp-link-btn:hover { opacity: 0.9; color: white;}
-        .btn-ebay { background: #e53238 !important; }
-        .btn-fb { background: #1877f2 !important; }
-        .btn-google { background: #ea4335 !important; }
-        .btn-lens { background: #4285f4 !important; }
+        .btn-ebay { background: #e53238; }
+        .btn-fb { background: #1877f2; }
+        .btn-google { background: #ea4335; }
+        .btn-lens { background: #4285f4; }
 
         .valuation-box {
             background: var(--card-bg);
@@ -640,7 +628,7 @@
         /* MOBILE RESPONSIVE CARD VIEW */
         @media (max-width: 768px) {
             body { padding: 10px; }
-            .container { padding: 15px; }
+            .container { padding: 12px; }
             .table-controls, .chart-controls { flex-direction: column; align-items: stretch; }
             .filters-left { flex-direction: column; align-items: stretch; width: 100%; }
             .search-input, .filter-select, .date-group { width: 100%; }
@@ -770,7 +758,7 @@
         </div>
     </div>
 
-    <!-- Inventory Input Form (Row 1: Title full width | Row 2: eBay & Date | Row 3: Cost & List Price | Row 4: Buttons) -->
+    <!-- Inventory Input Form -->
     <div class="form-grid">
         <input type="text" id="itemName" class="form-full" placeholder="Item Name" required>
         
@@ -813,7 +801,7 @@
             <span class="reset-link" onclick="resetFilters()">Reset</span>
         </div>
         
-        <button onclick="generateEmailReport()" style="background:var(--drop) !important;">🔔 Email Price Drop Report</button>
+        <button onclick="generateEmailReport()" style="background:var(--drop);">🔔 Email Price Drop Report</button>
     </div>
 
     <!-- ACTIVE LISTINGS COLLAPSIBLE TABLE -->
@@ -888,7 +876,7 @@
         </select>
         <input type="number" id="expAmount" placeholder="Amount ($)" step="0.01" required>
         <input type="date" id="expDate" required>
-        <button style="background-color: var(--expense) !important;" onclick="addExpense()">Add Expense</button>
+        <button style="background-color: var(--expense);" onclick="addExpense()">Add Expense</button>
     </div>
 
     <table>
@@ -931,14 +919,14 @@
         <h2>✨ AI Identification & Market Valuation</h2>
         
         <div style="display: flex; gap: 10px; margin-bottom: 15px;">
-            <button onclick="document.getElementById('cameraInput').click()" style="flex: 1; margin: 0; background: var(--secondary) !important; color: #fff; font-size: 14px;">📸 Take Photo</button>
-            <button onclick="startBarcodeScanner()" style="flex: 1; margin: 0; background: var(--comp) !important; color: #fff; font-size: 14px;">📷 Scan Barcode</button>
+            <button onclick="document.getElementById('cameraInput').click()" style="flex: 1; margin: 0; background: var(--secondary); color: #fff; font-size: 14px;">📸 Take Photo</button>
+            <button onclick="startBarcodeScanner()" style="flex: 1; margin: 0; background: var(--comp); color: #fff; font-size: 14px;">📷 Scan Barcode</button>
         </div>
         <input type="file" id="cameraInput" accept="image/*" capture="environment" style="display:none;" onchange="handleAnalysisImageUpload(event)">
         
         <div id="scannerContainer" class="scanner-container">
             <div id="reader" style="width:100%;"></div>
-            <button onclick="stopBarcodeScanner()" style="width:100%; background:var(--expense) !important; border-radius:0;">Cancel Scan</button>
+            <button onclick="stopBarcodeScanner()" style="width:100%; background:var(--expense); border-radius:0;">Cancel Scan</button>
         </div>
         
         <div class="dropzone" onclick="document.getElementById('analysisFileInput').click()">
