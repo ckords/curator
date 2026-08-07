@@ -349,24 +349,33 @@
             padding: 12px 15px;
             margin-bottom: 15px;
             display: flex;
-            justify-content: space-between;
+            justify-content: space-around;
             align-items: center;
+            gap: 10px;
         }
         .ebay-metric-pill {
             display: flex;
             flex-direction: column;
             align-items: center;
+            flex: 1;
         }
-        .ebay-metric-val {
+        .ebay-metric-input {
             font-size: 16px;
             font-weight: bold;
             color: var(--payout);
+            background: var(--input-bg);
+            border: 1px solid var(--input-border);
+            border-radius: 4px;
+            text-align: center;
+            width: 100%;
+            padding: 4px;
         }
         .ebay-metric-lbl {
             font-size: 10px;
             text-transform: uppercase;
             color: var(--muted-text);
             font-weight: bold;
+            margin-top: 3px;
         }
 
         /* Chart Filter Controls */
@@ -1123,21 +1132,21 @@
         <input type="hidden" id="editItemId">
         <input type="hidden" id="editOldPrice">
 
-        <!-- eBay Live Metrics Box -->
+        <!-- eBay Live Metrics Box (Now Fully Editable) -->
         <div class="ebay-metrics-box" id="ebayMetricsContainer">
             <div class="ebay-metric-pill">
-                <span class="ebay-metric-val" id="metricWatchers">--</span>
+                <input type="number" id="metricWatchers" class="ebay-metric-input" value="0">
                 <span class="ebay-metric-lbl">Watchers</span>
             </div>
             <div class="ebay-metric-pill">
-                <span class="ebay-metric-val" id="metricViews">--</span>
+                <input type="number" id="metricViews" class="ebay-metric-input" value="0">
                 <span class="ebay-metric-lbl">Page Views</span>
             </div>
             <div class="ebay-metric-pill">
-                <span class="ebay-metric-val" id="metricOffers">--</span>
+                <input type="number" id="metricOffers" class="ebay-metric-input" value="0">
                 <span class="ebay-metric-lbl">Bids/Offers</span>
             </div>
-            <button onclick="refreshEbayMetrics()" style="font-size:11px; padding:6px 10px; background:var(--payout) !important;">🔄 Refresh</button>
+            <button onclick="refreshEbayMetrics()" title="Attempt automated fetch via Edge Function" style="font-size:11px; padding:6px 10px; background:var(--payout) !important; height: fit-content;">🔄 Sync</button>
         </div>
 
         <div class="modal-group">
@@ -2320,11 +2329,10 @@ Return concise HTML bullet points covering:
             return;
         }
 
-        document.getElementById('metricWatchers').innerText = '...';
-        document.getElementById('metricViews').innerText = '...';
+        document.getElementById('metricWatchers').value = '...';
+        document.getElementById('metricViews').value = '...';
 
         try {
-            // Call Supabase Edge Function to fetch real-time eBay page stats
             const res = await fetch(`${supabaseUrl}/functions/v1/get-ebay-metrics`, {
                 method: 'POST',
                 headers: {
@@ -2335,13 +2343,12 @@ Return concise HTML bullet points covering:
             });
 
             const data = await res.json();
-            document.getElementById('metricWatchers').innerText = data.watchers || '--';
-            document.getElementById('metricViews').innerText = data.pageViews || '--';
-            document.getElementById('metricOffers').innerText = '0';
+            document.getElementById('metricWatchers').value = data.watchers !== '--' ? data.watchers : 0;
+            document.getElementById('metricViews').value = data.pageViews !== '--' ? data.pageViews : 0;
         } catch (err) {
             console.error('Error refreshing eBay metrics:', err);
-            document.getElementById('metricWatchers').innerText = '--';
-            document.getElementById('metricViews').innerText = '--';
+            document.getElementById('metricWatchers').value = 0;
+            document.getElementById('metricViews').value = 0;
         }
     }
 
@@ -2356,9 +2363,12 @@ Return concise HTML bullet points covering:
         document.getElementById('editActualSale').value = item.actual_sale_price || 0;
         document.getElementById('editTotalPayout').value = item.total_payout || 0;
         
-        // Fetch saved link from item or local storage backup
         const savedUrl = item.ebay_url || localStorage.getItem(`curator_ebay_url_${item.id}`) || '';
         document.getElementById('editEbayUrl').value = savedUrl;
+
+        document.getElementById('metricWatchers').value = item.ebay_watchers || 0;
+        document.getElementById('metricViews').value = item.ebay_views || 0;
+        document.getElementById('metricOffers').value = item.ebay_offers || 0;
         
         document.getElementById('editDateListed').value = item.date_listed || '';
 
@@ -2366,7 +2376,6 @@ Return concise HTML bullet points covering:
         document.getElementById('editDatePriceReduced').value = dropDateIso;
 
         updateEbayListingLink();
-        if (savedUrl) refreshEbayMetrics();
 
         const historyList = document.getElementById('editPriceHistoryList');
         historyList.innerHTML = '<li style="color:var(--muted-text);">Loading history...</li>';
@@ -2414,19 +2423,18 @@ Return concise HTML bullet points covering:
         const dateListed = document.getElementById('editDateListed').value;
         const customDropDate = document.getElementById('editDatePriceReduced').value;
         const ebayUrl = document.getElementById('editEbayUrl').value.trim();
+        
+        const ebayWatchers = parseInt(document.getElementById('metricWatchers').value) || 0;
+        const ebayViews = parseInt(document.getElementById('metricViews').value) || 0;
+        const ebayOffers = parseInt(document.getElementById('metricOffers').value) || 0;
 
         if (!itemName || !dateListed) {
             alert('Item Name and Date Listed are required.');
             return;
         }
 
-        // Save URL in localStorage backup
-        if (id) {
-            if (ebayUrl) {
-                localStorage.setItem(`curator_ebay_url_${id}`, ebayUrl);
-            } else {
-                localStorage.removeItem(`curator_ebay_url_${id}`);
-            }
+        if (id && ebayUrl) {
+            localStorage.setItem(`curator_ebay_url_${id}`, ebayUrl);
         }
 
         const targetMargin = listPrice - cost;
@@ -2444,7 +2452,10 @@ Return concise HTML bullet points covering:
             net_profit: netProfit,
             target_margin: targetMargin,
             date_listed: dateListed,
-            ebay_url: ebayUrl
+            ebay_url: ebayUrl,
+            ebay_watchers: ebayWatchers,
+            ebay_views: ebayViews,
+            ebay_offers: ebayOffers
         };
 
         if (listPrice < oldPrice) {
@@ -2458,15 +2469,17 @@ Return concise HTML bullet points covering:
             }]);
         }
 
-        // Attempt update with ebay_url; fallback if column does not exist on Supabase
         let { error } = await supabaseClient
             .from('curator_listings')
             .update(updatePayload)
             .eq('id', id);
 
-        if (error && error.message && error.message.includes('ebay_url')) {
-            console.warn('ebay_url column not found in database; saving remaining fields.');
+        if (error && error.message && (error.message.includes('ebay_url') || error.message.includes('ebay_watchers'))) {
+            console.warn('New metric columns not found in database; saving core fields.');
             delete updatePayload.ebay_url;
+            delete updatePayload.ebay_watchers;
+            delete updatePayload.ebay_views;
+            delete updatePayload.ebay_offers;
             const fallback = await supabaseClient
                 .from('curator_listings')
                 .update(updatePayload)
