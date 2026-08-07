@@ -266,7 +266,7 @@
         }
         .is-collapsed .collapsible-content { display: none; }
 
-        /* FORM GRID & BUTTON COLOR RULES */
+        /* FORM GRID & EXPLICIT BUTTON COLOR RULES */
         .form-grid {
             display: grid;
             grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -777,13 +777,20 @@
             <div class="chart-controls">
                 <div class="date-group">
                     <span style="font-size: 13px;">View By:</span>
-                    <select id="chartTimeframe" onchange="updateSalesChart(allInventoryData)" style="padding: 6px 10px;">
+                    <select id="chartTimeframe" onchange="resetDrillDownAndRender()" style="padding: 6px 10px;">
                         <option value="week" selected>Week</option>
                         <option value="month">Month</option>
                         <option value="year">Year</option>
                         <option value="custom">Custom Range</option>
                     </select>
                 </div>
+
+                <div class="date-group" style="margin-left: 10px; cursor: pointer;">
+                    <input type="checkbox" id="showLineOverlay" onchange="updateSalesChart(allInventoryData)" style="cursor: pointer; width: 16px; height: 16px;">
+                    <label for="showLineOverlay" style="font-size: 13px; cursor: pointer; user-select: none;">Show Line Trend Overlay</label>
+                </div>
+
+                <button id="btnChartBack" onclick="drillUpChart()" style="display: none; padding: 6px 12px; font-size: 12px; background: var(--payout) !important; margin-left: auto;">⬅ Back</button>
                 
                 <div id="chartCustomDates" style="display: none; gap: 10px; align-items: center;">
                     <div class="date-group">
@@ -796,7 +803,7 @@
                     </div>
                 </div>
             </div>
-            <div style="height: 350px; position: relative;">
+            <div style="height: 380px; position: relative;">
                 <canvas id="salesChart"></canvas>
             </div>
         </div>
@@ -1175,6 +1182,8 @@
     let currentSortDirection = 'asc';
     let chartInstance = null;
 
+    let drillDownFilter = null; // Stores current drill-down state (e.g., month or year)
+
     let calculatedCompPrices = { low: 0, mid: 0, high: 0, rec: 0 };
 
     // Register ChartDataLabels plugin
@@ -1468,10 +1477,32 @@
         return d.toISOString().substring(0, 10);
     }
 
-    // 7. Build and Render Grouped Bar Analytics Chart with Continuous Date Sequence
+    function resetDrillDownAndRender() {
+        drillDownFilter = null;
+        document.getElementById('btnChartBack').style.display = 'none';
+        updateSalesChart(allInventoryData);
+    }
+
+    function drillUpChart() {
+        if (drillDownFilter) {
+            if (drillDownFilter.type === 'month') {
+                drillDownFilter = null;
+                document.getElementById('chartTimeframe').value = 'year';
+            } else if (drillDownFilter.type === 'week') {
+                drillDownFilter = null;
+                document.getElementById('chartTimeframe').value = 'month';
+            }
+        }
+        document.getElementById('btnChartBack').style.display = 'none';
+        updateSalesChart(allInventoryData);
+    }
+
+    // 7. Build and Render Grouped Bar Analytics Chart with Dynamic Line Overlay & Drill Down
     function updateSalesChart(data) {
         const timeframeEl = document.getElementById('chartTimeframe');
-        const timeframe = timeframeEl ? timeframeEl.value : 'week';
+        let timeframe = timeframeEl ? timeframeEl.value : 'week';
+        const showLines = document.getElementById('showLineOverlay') ? document.getElementById('showLineOverlay').checked : false;
+        
         const customDiv = document.getElementById('chartCustomDates');
         const chartStart = document.getElementById('chartStartDate') ? document.getElementById('chartStartDate').value : '';
         const chartEnd = document.getElementById('chartEndDate') ? document.getElementById('chartEndDate').value : '';
@@ -1480,8 +1511,21 @@
             customDiv.style.display = (timeframe === 'custom') ? 'flex' : 'none';
         }
 
-        const soldItems = data.filter(item => item.status === 'Sold' && item.date_listed);
+        let soldItems = data.filter(item => item.status === 'Sold' && item.date_listed);
         
+        // Apply Drill Down Filter if active
+        if (drillDownFilter) {
+            if (drillDownFilter.type === 'week') {
+                // Show weeks of specific month
+                soldItems = soldItems.filter(i => i.date_listed.startsWith(drillDownFilter.value));
+                timeframe = 'week';
+            } else if (drillDownFilter.type === 'month') {
+                // Show months of specific year
+                soldItems = soldItems.filter(i => i.date_listed.startsWith(drillDownFilter.value));
+                timeframe = 'month';
+            }
+        }
+
         let labels = [];
         const aggregated = {};
 
@@ -1583,46 +1627,108 @@
         const gridColor = isDark ? '#444' : '#e0e0e0';
         const tickColor = isDark ? '#aaa' : '#666';
 
+        const datasets = [
+            {
+                type: 'bar',
+                label: 'Gross Sales',
+                data: grossSeries.length ? grossSeries : [0],
+                backgroundColor: '#8e44ad',
+                borderRadius: 4
+            },
+            {
+                type: 'bar',
+                label: 'Net Payouts',
+                data: payoutSeries.length ? payoutSeries : [0],
+                backgroundColor: '#2980b9',
+                borderRadius: 4
+            },
+            {
+                type: 'bar',
+                label: 'Net Profit',
+                data: profitSeries.length ? profitSeries : [0],
+                backgroundColor: '#27ae60',
+                borderRadius: 4
+            },
+            {
+                type: 'bar',
+                label: 'COGS',
+                data: cogsSeries.length ? cogsSeries : [0],
+                backgroundColor: '#f39c12',
+                borderRadius: 4
+            },
+            {
+                type: 'bar',
+                label: 'Fees & Taxes',
+                data: feesSeries.length ? feesSeries : [0],
+                backgroundColor: '#e74c3c',
+                borderRadius: 4
+            }
+        ];
+
+        if (showLines) {
+            datasets.push(
+                {
+                    type: 'line',
+                    label: 'Gross Trend',
+                    data: grossSeries,
+                    borderColor: '#8e44ad',
+                    borderWidth: 2,
+                    fill: false,
+                    tension: 0.3,
+                    pointRadius: 3,
+                    datalabels: { display: false }
+                },
+                {
+                    type: 'line',
+                    label: 'Payout Trend',
+                    data: payoutSeries,
+                    borderColor: '#2980b9',
+                    borderWidth: 2,
+                    fill: false,
+                    tension: 0.3,
+                    pointRadius: 3,
+                    datalabels: { display: false }
+                },
+                {
+                    type: 'line',
+                    label: 'Profit Trend',
+                    data: profitSeries,
+                    borderColor: '#27ae60',
+                    borderWidth: 2,
+                    fill: false,
+                    tension: 0.3,
+                    pointRadius: 3,
+                    datalabels: { display: false }
+                }
+            );
+        }
+
         chartInstance = new Chart(ctx, {
-            type: 'bar',
             data: {
                 labels: labels.length ? labels : ['No Data'],
-                datasets: [
-                    {
-                        label: 'Gross Sales',
-                        data: grossSeries.length ? grossSeries : [0],
-                        backgroundColor: '#8e44ad',
-                        borderRadius: 4
-                    },
-                    {
-                        label: 'Net Payouts',
-                        data: payoutSeries.length ? payoutSeries : [0],
-                        backgroundColor: '#2980b9',
-                        borderRadius: 4
-                    },
-                    {
-                        label: 'Net Profit',
-                        data: profitSeries.length ? profitSeries : [0],
-                        backgroundColor: '#27ae60',
-                        borderRadius: 4
-                    },
-                    {
-                        label: 'COGS',
-                        data: cogsSeries.length ? cogsSeries : [0],
-                        backgroundColor: '#f39c12',
-                        borderRadius: 4
-                    },
-                    {
-                        label: 'Fees & Taxes',
-                        data: feesSeries.length ? feesSeries : [0],
-                        backgroundColor: '#e74c3c',
-                        borderRadius: 4
-                    }
-                ]
+                datasets: datasets
             },
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
+                onClick: (e, elements) => {
+                    if (elements.length > 0) {
+                        const index = elements[0].index;
+                        const clickedLabel = labels[index];
+
+                        if (timeframe === 'month') {
+                            drillDownFilter = { type: 'week', value: clickedLabel };
+                            document.getElementById('btnChartBack').innerText = `⬅ Back to Months`;
+                            document.getElementById('btnChartBack').style.display = 'inline-block';
+                            updateSalesChart(allInventoryData);
+                        } else if (timeframe === 'year') {
+                            drillDownFilter = { type: 'month', value: clickedLabel };
+                            document.getElementById('btnChartBack').innerText = `⬅ Back to Years`;
+                            document.getElementById('btnChartBack').style.display = 'inline-block';
+                            updateSalesChart(allInventoryData);
+                        }
+                    }
+                },
                 plugins: {
                     title: {
                         display: true,
@@ -1631,7 +1737,10 @@
                         font: { size: 14, weight: 'bold' }
                     },
                     legend: {
-                        labels: { color: tickColor },
+                        labels: { 
+                            color: tickColor,
+                            filter: (legendItem) => !legendItem.text.includes('Trend') 
+                        },
                         position: 'bottom'
                     },
                     datalabels: {
