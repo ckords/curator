@@ -2371,7 +2371,6 @@ Return concise HTML bullet points covering:
         document.getElementById('metricViews').value = item.ebay_views || 0;
         document.getElementById('metricOffers').value = item.ebay_offers || 0;
 
-        // Store original snapshot for diff tracking
         document.getElementById('editOriginalItemState').value = JSON.stringify({
             item_name: item.item_name || '',
             platform: item.platform || 'eBay',
@@ -2393,7 +2392,6 @@ Return concise HTML bullet points covering:
 
         updateEbayListingLink();
 
-        // Load Activity History
         const historyList = document.getElementById('editPriceHistoryList');
         historyList.innerHTML = '<li style="color:var(--muted-text);">Loading history...</li>';
 
@@ -2404,7 +2402,6 @@ Return concise HTML bullet points covering:
             .order('logged_at', { ascending: false });
 
         if (error || !data || data.length === 0) {
-            // Fallback check old price drops table if no audit logs yet
             const { data: oldDrops } = await supabaseClient
                 .from('curator_price_drops')
                 .select('*')
@@ -2477,7 +2474,6 @@ Return concise HTML bullet points covering:
             localStorage.setItem(`curator_ebay_url_${id}`, ebayUrl);
         }
 
-        // Detect all changes made for audit history log
         let changes = [];
         if (originalState.item_name !== itemName) changes.push(`Name changed: "${originalState.item_name}" → "${itemName}"`);
         if (originalState.platform !== platform) changes.push(`Platform: ${originalState.platform} → ${platform}`);
@@ -2485,8 +2481,8 @@ Return concise HTML bullet points covering:
         if (originalState.list_price !== listPrice) changes.push(`List Price: $${originalState.list_price.toFixed(2)} → $${listPrice.toFixed(2)}`);
         if (originalState.item_cost !== cost) changes.push(`Cost: $${originalState.item_cost.toFixed(2)} → $${cost.toFixed(2)}`);
         if (originalState.ebay_url !== ebayUrl) changes.push(ebayUrl ? 'eBay link added/updated' : 'eBay link removed');
-        if (originalState.ebay_watchers !== ebayWatchers) changes.push(`Watchers synced: ${originalState.ebay_watchers} → ${ebayWatchers}`);
-        if (originalState.ebay_views !== ebayViews) changes.push(`Views synced: ${originalState.ebay_views} → ${ebayViews}`);
+        if (originalState.ebay_watchers !== ebayWatchers) changes.push(`Watchers: ${originalState.ebay_watchers} → ${ebayWatchers}`);
+        if (originalState.ebay_views !== ebayViews) changes.push(`Views: ${originalState.ebay_views} → ${ebayViews}`);
         if (originalState.ebay_offers !== ebayOffers) changes.push(`Offers/Bids: ${originalState.ebay_offers} → ${ebayOffers}`);
 
         const targetMargin = listPrice - cost;
@@ -2520,7 +2516,6 @@ Return concise HTML bullet points covering:
             }]);
         }
 
-        // Save Audit logs if any changes were detected
         if (changes.length > 0) {
             const nowIso = new Date().toISOString();
             for (let change of changes) {
@@ -2528,7 +2523,7 @@ Return concise HTML bullet points covering:
                     listing_id: id,
                     change_description: change,
                     logged_at: nowIso
-                }]).catch(() => {}); // Fallback silently if table doesn't exist yet
+                }]).catch(() => {});
             }
         }
 
@@ -2537,11 +2532,14 @@ Return concise HTML bullet points covering:
             .update(updatePayload)
             .eq('id', id);
 
-        if (error && error.message && (error.message.includes('ebay_url') || error.message.includes('ebay_watchers'))) {
+        // Smart Fallback: if database columns are missing, strip metric fields and try core update
+        if (error && error.message && (error.message.includes('ebay_url') || error.message.includes('ebay_watchers') || error.message.includes('column'))) {
+            console.warn('Advanced metric/link columns missing in database; saving core listing details.');
             delete updatePayload.ebay_url;
             delete updatePayload.ebay_watchers;
             delete updatePayload.ebay_views;
             delete updatePayload.ebay_offers;
+            
             const fallback = await supabaseClient
                 .from('curator_listings')
                 .update(updatePayload)
