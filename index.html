@@ -264,7 +264,7 @@
         }
         .is-collapsed .collapsible-content { display: none; }
 
-        /* RESTRUCTURED FORM GRID */
+        /* FORM GRID & EXPLICIT BUTTON COLOR RULES */
         .form-grid {
             display: grid;
             grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -288,22 +288,37 @@
         .form-full {
             grid-column: span 2;
         }
+
         button {
             background-color: var(--secondary);
-            color: white;
+            color: white !important;
             border: none;
             cursor: pointer;
             font-weight: bold;
-            transition: background 0.3s;
+            transition: opacity 0.2s, background-color 0.3s;
         }
-        button:hover { background-color: #128f76; }
-        .btn-ai-trigger { 
-            background-color: var(--ai-info); 
+        button:hover { opacity: 0.9; }
+
+        .btn-add {
+            background-color: var(--secondary) !important;
             color: white !important;
         }
-        .btn-ai-trigger:hover { background-color: #763e9b; }
-        .btn-import { background-color: var(--payout); }
-        .btn-import:hover { background-color: #1b5e91; }
+        .btn-ai-trigger { 
+            background-color: var(--ai-info) !important; 
+            color: white !important;
+        }
+        .btn-import { 
+            background-color: var(--payout) !important; 
+            color: white !important;
+        }
+        .btn-camera {
+            background-color: var(--secondary) !important;
+            color: white !important;
+        }
+        .btn-barcode {
+            background-color: var(--comp) !important;
+            color: white !important;
+        }
 
         /* Chart Filter Controls */
         .chart-controls {
@@ -406,18 +421,18 @@
             font-size: 11px;
             padding: 5px 2px;
             border-radius: 3px;
-            color: white;
+            color: white !important;
             margin: 0;
             width: 100%;
             box-sizing: border-box;
             text-align: center;
         }
-        .btn-edit { background-color: #2980b9; }
-        .btn-edit:hover { background-color: #2471a3; }
-        .btn-sold { background-color: #27ae60; }
-        .btn-sold:hover { background-color: #1e8449; }
-        .btn-delete { background-color: #e74c3c; }
-        .btn-delete:hover { background-color: #c0392b; }
+        .btn-edit { background-color: #2980b9 !important; }
+        .btn-edit:hover { background-color: #2471a3 !important; }
+        .btn-sold { background-color: #27ae60 !important; }
+        .btn-sold:hover { background-color: #1e8449 !important; }
+        .btn-delete { background-color: #e74c3c !important; }
+        .btn-delete:hover { background-color: #c0392b !important; }
 
         /* Modals */
         .modal-overlay {
@@ -484,7 +499,7 @@
             gap: 10px;
             margin-top: 20px;
         }
-        .btn-cancel { background-color: #95a5a6; color: white; }
+        .btn-cancel { background-color: #95a5a6 !important; color: white !important; }
 
         /* History Log Container in Edit Modal */
         .history-log-box {
@@ -555,18 +570,18 @@
             text-align: center;
             padding: 10px;
             background: var(--primary);
-            color: white;
+            color: white !important;
             text-decoration: none;
             border-radius: 4px;
             font-size: 12px;
             font-weight: bold;
             transition: opacity 0.2s;
         }
-        .comp-link-btn:hover { opacity: 0.9; color: white;}
-        .btn-ebay { background: #e53238; }
-        .btn-fb { background: #1877f2; }
-        .btn-google { background: #ea4335; }
-        .btn-lens { background: #4285f4; }
+        .comp-link-btn:hover { opacity: 0.9; color: white !important;}
+        .btn-ebay { background: #e53238 !important; }
+        .btn-fb { background: #1877f2 !important; }
+        .btn-google { background: #ea4335 !important; }
+        .btn-lens { background: #4285f4 !important; }
 
         .valuation-box {
             background: var(--card-bg);
@@ -621,8 +636,8 @@
         .apply-btn-pill {
             font-size: 11px;
             padding: 4px 8px;
-            background: var(--secondary);
-            color: white;
+            background: var(--secondary) !important;
+            color: white !important;
             border: none;
             border-radius: 3px;
             cursor: pointer;
@@ -787,7 +802,7 @@
         <input type="number" id="listPrice" placeholder="List Price ($)" step="0.01" required>
 
         <button class="btn-ai-trigger" onclick="openAnalysisModal()">✨ Analyze</button>
-        <button onclick="addListing()">Add</button>
+        <button class="btn-add" onclick="addListing()">Add</button>
         
         <button class="btn-import form-full" onclick="openImportModal()">📥 Import Listing from eBay / File</button>
     </div>
@@ -816,7 +831,7 @@
             <span class="reset-link" onclick="resetFilters()">Reset</span>
         </div>
         
-        <button onclick="generateEmailReport()" style="background:var(--drop);">🔔 Email Price Drop Report</button>
+        <button onclick="generateEmailReport()" style="background:var(--drop) !important;">🔔 Email Price Drop Report</button>
     </div>
 
     <!-- ACTIVE LISTINGS COLLAPSIBLE TABLE -->
@@ -891,7 +906,7 @@
         </select>
         <input type="number" id="expAmount" placeholder="Amount ($)" step="0.01" required>
         <input type="date" id="expDate" required>
-        <button style="background-color: var(--expense);" onclick="addExpense()">Add Expense</button>
+        <button style="background-color: var(--expense) !important;" onclick="addExpense()">Add Expense</button>
     </div>
 
     <table>
@@ -934,14 +949,14 @@
         <h2>✨ AI Identification & Market Valuation</h2>
         
         <div style="display: flex; gap: 10px; margin-bottom: 15px;">
-            <button onclick="document.getElementById('cameraInput').click()" style="flex: 1; margin: 0; background: var(--secondary); color: #fff; font-size: 14px;">📸 Take Photo</button>
-            <button onclick="startBarcodeScanner()" style="flex: 1; margin: 0; background: var(--comp); color: #fff; font-size: 14px;">📷 Scan Barcode</button>
+            <button class="btn-camera" onclick="document.getElementById('cameraInput').click()" style="flex: 1; margin: 0; font-size: 14px;">📸 Take Photo</button>
+            <button class="btn-barcode" onclick="startBarcodeScanner()" style="flex: 1; margin: 0; font-size: 14px;">📷 Scan Barcode</button>
         </div>
         <input type="file" id="cameraInput" accept="image/*" capture="environment" style="display:none;" onchange="handleAnalysisImageUpload(event)">
         
         <div id="scannerContainer" class="scanner-container">
             <div id="reader" style="width:100%;"></div>
-            <button onclick="stopBarcodeScanner()" style="width:100%; background:var(--expense); border-radius:0;">Cancel Scan</button>
+            <button onclick="stopBarcodeScanner()" style="width:100%; background:var(--expense) !important; border-radius:0;">Cancel Scan</button>
         </div>
         
         <div class="dropzone" onclick="document.getElementById('analysisFileInput').click()">
@@ -1031,7 +1046,7 @@
 
         <div class="modal-actions">
             <button class="btn-cancel" onclick="closeAnalysisModal()">Close</button>
-            <button onclick="applyAnalysisToForm()">Apply Default Price (High)</button>
+            <button class="btn-add" onclick="applyAnalysisToForm()">Apply Default Price (High)</button>
         </div>
     </div>
 </div>
