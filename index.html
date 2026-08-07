@@ -272,7 +272,7 @@
             margin-bottom: 25px;
             width: 100%;
         }
-        .form-grid input, .form-grid select {
+        .form-grid input, .form-grid select, .form-grid button {
             padding: 10px;
             border: 1px solid var(--input-border);
             border-radius: 6px;
@@ -289,22 +289,21 @@
             grid-column: span 2;
         }
         button {
-            padding: 10px;
-            border: none;
-            border-radius: 6px;
-            font-family: inherit;
-            font-size: 13px;
-            font-weight: bold;
+            background-color: var(--secondary);
             color: white;
+            border: none;
             cursor: pointer;
-            transition: opacity 0.2s, background-color 0.3s;
-            width: 100%;
-            box-sizing: border-box;
+            font-weight: bold;
+            transition: background 0.3s;
         }
-        button:hover { opacity: 0.9; }
-        .btn-add { background-color: var(--secondary) !important; }
-        .btn-ai-trigger { background-color: var(--ai-info) !important; }
-        .btn-import { background-color: var(--payout) !important; }
+        button:hover { background-color: #128f76; }
+        .btn-ai-trigger { 
+            background-color: var(--ai-info); 
+            color: white !important;
+        }
+        .btn-ai-trigger:hover { background-color: #763e9b; }
+        .btn-import { background-color: var(--payout); }
+        .btn-import:hover { background-color: #1b5e91; }
 
         /* Chart Filter Controls */
         .chart-controls {
@@ -413,9 +412,12 @@
             box-sizing: border-box;
             text-align: center;
         }
-        .btn-edit { background-color: #2980b9 !important; }
-        .btn-sold { background-color: #27ae60 !important; }
-        .btn-delete { background-color: #e74c3c !important; }
+        .btn-edit { background-color: #2980b9; }
+        .btn-edit:hover { background-color: #2471a3; }
+        .btn-sold { background-color: #27ae60; }
+        .btn-sold:hover { background-color: #1e8449; }
+        .btn-delete { background-color: #e74c3c; }
+        .btn-delete:hover { background-color: #c0392b; }
 
         /* Modals */
         .modal-overlay {
@@ -457,6 +459,8 @@
             flex-direction: column;
             gap: 5px;
             margin-bottom: 15px;
+            width: 100%;
+            min-width: 0;
         }
         .modal-group label {
             font-size: 12px;
@@ -464,13 +468,23 @@
             color: var(--text);
             opacity: 0.9;
         }
+        .modal-group select, .modal-group input {
+            width: 100%;
+            min-width: 0;
+            box-sizing: border-box;
+            background: var(--input-bg);
+            color: var(--text);
+            border: 1px solid var(--input-border);
+            padding: 8px;
+            border-radius: 4px;
+        }
         .modal-actions {
             display: flex;
             justify-content: flex-end;
             gap: 10px;
             margin-top: 20px;
         }
-        .btn-cancel { background-color: #95a5a6 !important; color: white; }
+        .btn-cancel { background-color: #95a5a6; color: white; }
 
         /* History Log Container in Edit Modal */
         .history-log-box {
@@ -549,10 +563,10 @@
             transition: opacity 0.2s;
         }
         .comp-link-btn:hover { opacity: 0.9; color: white;}
-        .btn-ebay { background: #e53238 !important; }
-        .btn-fb { background: #1877f2 !important; }
-        .btn-google { background: #ea4335 !important; }
-        .btn-lens { background: #4285f4 !important; }
+        .btn-ebay { background: #e53238; }
+        .btn-fb { background: #1877f2; }
+        .btn-google { background: #ea4335; }
+        .btn-lens { background: #4285f4; }
 
         .valuation-box {
             background: var(--card-bg);
@@ -607,7 +621,7 @@
         .apply-btn-pill {
             font-size: 11px;
             padding: 4px 8px;
-            background: var(--secondary) !important;
+            background: var(--secondary);
             color: white;
             border: none;
             border-radius: 3px;
@@ -773,7 +787,7 @@
         <input type="number" id="listPrice" placeholder="List Price ($)" step="0.01" required>
 
         <button class="btn-ai-trigger" onclick="openAnalysisModal()">✨ Analyze</button>
-        <button class="btn-add" onclick="addListing()">Add</button>
+        <button onclick="addListing()">Add</button>
         
         <button class="btn-import form-full" onclick="openImportModal()">📥 Import Listing from eBay / File</button>
     </div>
@@ -802,7 +816,7 @@
             <span class="reset-link" onclick="resetFilters()">Reset</span>
         </div>
         
-        <button onclick="generateEmailReport()" style="background:var(--drop) !important;">🔔 Email Price Drop Report</button>
+        <button onclick="generateEmailReport()" style="background:var(--drop);">🔔 Email Price Drop Report</button>
     </div>
 
     <!-- ACTIVE LISTINGS COLLAPSIBLE TABLE -->
@@ -877,7 +891,7 @@
         </select>
         <input type="number" id="expAmount" placeholder="Amount ($)" step="0.01" required>
         <input type="date" id="expDate" required>
-        <button style="background-color: var(--expense) !important;" onclick="addExpense()">Add Expense</button>
+        <button style="background-color: var(--expense);" onclick="addExpense()">Add Expense</button>
     </div>
 
     <table>
@@ -909,7 +923,7 @@
 
         <div class="modal-actions">
             <button class="btn-cancel" onclick="closeImportModal()">Cancel</button>
-            <button class="btn-import" onclick="processListingImport()">Import Item</button>
+            <button onclick="processListingImport()">Import Item</button>
         </div>
     </div>
 </div>
@@ -920,14 +934,14 @@
         <h2>✨ AI Identification & Market Valuation</h2>
         
         <div style="display: flex; gap: 10px; margin-bottom: 15px;">
-            <button onclick="document.getElementById('cameraInput').click()" style="flex: 1; margin: 0; background: var(--secondary) !important; color: #fff; font-size: 14px;">📸 Take Photo</button>
-            <button onclick="startBarcodeScanner()" style="flex: 1; margin: 0; background: var(--comp) !important; color: #fff; font-size: 14px;">📷 Scan Barcode</button>
+            <button onclick="document.getElementById('cameraInput').click()" style="flex: 1; margin: 0; background: var(--secondary); color: #fff; font-size: 14px;">📸 Take Photo</button>
+            <button onclick="startBarcodeScanner()" style="flex: 1; margin: 0; background: var(--comp); color: #fff; font-size: 14px;">📷 Scan Barcode</button>
         </div>
         <input type="file" id="cameraInput" accept="image/*" capture="environment" style="display:none;" onchange="handleAnalysisImageUpload(event)">
         
         <div id="scannerContainer" class="scanner-container">
             <div id="reader" style="width:100%;"></div>
-            <button onclick="stopBarcodeScanner()" style="width:100%; background:var(--expense) !important; border-radius:0;">Cancel Scan</button>
+            <button onclick="stopBarcodeScanner()" style="width:100%; background:var(--expense); border-radius:0;">Cancel Scan</button>
         </div>
         
         <div class="dropzone" onclick="document.getElementById('analysisFileInput').click()">
@@ -942,13 +956,13 @@
         </div>
 
         <!-- Condition & Completeness Filters -->
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 15px;">
+        <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-bottom: 15px; width: 100%;">
             <div class="modal-group" style="margin-bottom:0;">
                 <label for="compCompleteness">Inclusion / Completeness</label>
                 <select id="compCompleteness" onchange="calculateValuationRange()">
-                    <option value="cib">Complete in Box (CIB)</option>
-                    <option value="case">Game & Case (No Manual)</option>
-                    <option value="loose">Loose / Disc Only</option>
+                    <option value="cib">In Original Packaging</option>
+                    <option value="case">Item & Case (No Manual)</option>
+                    <option value="loose">Loose / Item Only</option>
                     <option value="sealed">Factory Sealed</option>
                 </select>
             </div>
@@ -964,7 +978,7 @@
 
         <!-- AI & Search Action Buttons -->
         <div style="display:flex; gap:10px; margin-bottom:15px;">
-            <button onclick="generateAiDetails()" style="flex:1;">✨ Generate AI Insights</button>
+            <button onclick="generateAiDetails()" class="btn-ai-trigger" style="flex:1;">✨ Generate AI Insights</button>
             <a id="linkLens" href="#" target="_blank" class="comp-link-btn btn-lens" style="flex:1; margin:0; display:flex; align-items:center; justify-content:center;">Open Google Lens</a>
         </div>
 
@@ -1017,7 +1031,7 @@
 
         <div class="modal-actions">
             <button class="btn-cancel" onclick="closeAnalysisModal()">Close</button>
-            <button class="btn-add" onclick="applyAnalysisToForm()">Apply Default Price (High)</button>
+            <button onclick="applyAnalysisToForm()">Apply Default Price (High)</button>
         </div>
     </div>
 </div>
