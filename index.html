@@ -259,7 +259,7 @@
         }
         .is-collapsed .collapsible-content { display: none; }
 
-        /* RESTRUCTURED FORM GRID */
+        /* FORM GRID */
         .form-grid {
             display: grid;
             grid-template-columns: 1fr 1fr;
@@ -750,7 +750,7 @@
         </div>
     </div>
 
-    <!-- Inventory Input Form (Row 1: Title full width | Row 2: Platform/Cost | Row 3: List Price/Date | Row 4: Buttons) -->
+    <!-- Inventory Input Form (Row 1: Title full width | Row 2: eBay & Date | Row 3: Cost & List Price | Row 4: Buttons) -->
     <div class="form-grid">
         <input type="text" id="itemName" class="form-full" placeholder="Item Name" required>
         
@@ -758,10 +758,10 @@
             <option value="eBay">eBay</option>
             <option value="Facebook">Facebook Marketplace</option>
         </select>
-        <input type="number" id="itemCost" placeholder="Cost ($)" step="0.01" required>
-
-        <input type="number" id="listPrice" placeholder="List Price ($)" step="0.01" required>
         <input type="date" id="dateListed" required>
+
+        <input type="number" id="itemCost" placeholder="Cost ($)" step="0.01" required>
+        <input type="number" id="listPrice" placeholder="List Price ($)" step="0.01" required>
 
         <button class="btn-ai-trigger" onclick="openAnalysisModal()">✨ Analyze</button>
         <button onclick="addListing()">Add</button>
