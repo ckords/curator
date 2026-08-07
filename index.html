@@ -2334,7 +2334,10 @@ Return concise HTML bullet points covering:
         document.getElementById('editStatus').value = item.status || 'Active';
         document.getElementById('editActualSale').value = item.actual_sale_price || 0;
         document.getElementById('editTotalPayout').value = item.total_payout || 0;
-        document.getElementById('editEbayUrl').value = item.ebay_url || '';
+        
+        // Fetch saved link from item or local storage backup
+        const savedUrl = item.ebay_url || localStorage.getItem(`curator_ebay_url_${item.id}`) || '';
+        document.getElementById('editEbayUrl').value = savedUrl;
         
         document.getElementById('editDateListed').value = item.date_listed || '';
 
@@ -2396,6 +2399,15 @@ Return concise HTML bullet points covering:
             return;
         }
 
+        // Save URL in localStorage backup
+        if (id) {
+            if (ebayUrl) {
+                localStorage.setItem(`curator_ebay_url_${id}`, ebayUrl);
+            } else {
+                localStorage.removeItem(`curator_ebay_url_${id}`);
+            }
+        }
+
         const targetMargin = listPrice - cost;
         const netProfit = status === 'Sold' ? totalPayout - cost : 0;
         const dropTimestamp = customDropDate ? new Date(customDropDate).toISOString() : new Date().toISOString();
@@ -2425,10 +2437,21 @@ Return concise HTML bullet points covering:
             }]);
         }
 
-        const { error } = await supabaseClient
+        // Attempt update with ebay_url; fallback if column does not exist on Supabase
+        let { error } = await supabaseClient
             .from('curator_listings')
             .update(updatePayload)
             .eq('id', id);
+
+        if (error && error.message && error.message.includes('ebay_url')) {
+            console.warn('ebay_url column not found in database; saving remaining fields.');
+            delete updatePayload.ebay_url;
+            const fallback = await supabaseClient
+                .from('curator_listings')
+                .update(updatePayload)
+                .eq('id', id);
+            error = fallback.error;
+        }
 
         if (error) {
             console.error('Error updating listing:', error);
@@ -2516,6 +2539,7 @@ Return concise HTML bullet points covering:
             return;
         }
 
+        localStorage.removeItem(`curator_ebay_url_${id}`);
         fetchListings();
     }
 
