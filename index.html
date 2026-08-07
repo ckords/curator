@@ -1131,8 +1131,9 @@
         
         <input type="hidden" id="editItemId">
         <input type="hidden" id="editOldPrice">
+        <input type="hidden" id="editOriginalItemState">
 
-        <!-- eBay Live Metrics Box (Now Fully Editable) -->
+        <!-- eBay Live Metrics Box -->
         <div class="ebay-metrics-box" id="ebayMetricsContainer">
             <div class="ebay-metric-pill">
                 <input type="number" id="metricWatchers" class="ebay-metric-input" value="0">
@@ -1209,11 +1210,11 @@
             </div>
         </div>
 
-        <!-- History Log Section inside Edit Modal -->
+        <!-- Activity History Log Section inside Edit Modal -->
         <div class="history-log-box">
-            <div class="history-log-title">📜 Price Drop & Revision History</div>
+            <div class="history-log-title">📜 Item Audit & Activity History</div>
             <ul class="history-list" id="editPriceHistoryList">
-                <li style="color: var(--muted-text);">No price drop events logged yet.</li>
+                <li style="color: var(--muted-text);">No activity history logged yet.</li>
             </ul>
         </div>
 
@@ -2305,7 +2306,7 @@ Return concise HTML bullet points covering:
         fetchListings(); 
     }
 
-    // 13. Edit Modal, eBay Listing Link & Audit History Handling
+    // 13. Edit Modal, eBay Listing Link & Comprehensive Audit History Handling
     function updateEbayListingLink() {
         const urlInput = document.getElementById('editEbayUrl').value.trim();
         const btn = document.getElementById('btnOpenEbayListing');
@@ -2369,6 +2370,21 @@ Return concise HTML bullet points covering:
         document.getElementById('metricWatchers').value = item.ebay_watchers || 0;
         document.getElementById('metricViews').value = item.ebay_views || 0;
         document.getElementById('metricOffers').value = item.ebay_offers || 0;
+
+        // Store original snapshot for diff tracking
+        document.getElementById('editOriginalItemState').value = JSON.stringify({
+            item_name: item.item_name || '',
+            platform: item.platform || 'eBay',
+            item_cost: item.item_cost || 0,
+            list_price: item.list_price || 0,
+            status: item.status || 'Active',
+            actual_sale_price: item.actual_sale_price || 0,
+            total_payout: item.total_payout || 0,
+            ebay_url: savedUrl,
+            ebay_watchers: item.ebay_watchers || 0,
+            ebay_views: item.ebay_views || 0,
+            ebay_offers: item.ebay_offers || 0
+        });
         
         document.getElementById('editDateListed').value = item.date_listed || '';
 
@@ -2377,27 +2393,49 @@ Return concise HTML bullet points covering:
 
         updateEbayListingLink();
 
+        // Load Activity History
         const historyList = document.getElementById('editPriceHistoryList');
         historyList.innerHTML = '<li style="color:var(--muted-text);">Loading history...</li>';
 
         const { data, error } = await supabaseClient
-            .from('curator_price_drops')
+            .from('curator_audit_logs')
             .select('*')
             .eq('listing_id', item.id)
-            .order('date_dropped', { ascending: false });
+            .order('logged_at', { ascending: false });
 
         if (error || !data || data.length === 0) {
-            historyList.innerHTML = '<li style="color:var(--muted-text);">No price drop events logged yet.</li>';
+            // Fallback check old price drops table if no audit logs yet
+            const { data: oldDrops } = await supabaseClient
+                .from('curator_price_drops')
+                .select('*')
+                .eq('listing_id', item.id)
+                .order('date_dropped', { ascending: false });
+
+            if (!oldDrops || oldDrops.length === 0) {
+                historyList.innerHTML = '<li style="color:var(--muted-text);">No activity history logged yet.</li>';
+            } else {
+                historyList.innerHTML = '';
+                oldDrops.forEach(log => {
+                    const li = document.createElement('li');
+                    li.className = 'history-item';
+                    const dateStr = log.date_dropped ? log.date_dropped.substring(0, 10) : '';
+                    const diff = (log.previous_price - log.new_price).toFixed(2);
+                    li.innerHTML = `
+                        <span><strong>${dateStr}</strong>: Price $${log.previous_price.toFixed(2)} → $${log.new_price.toFixed(2)}</span>
+                        <span style="color:var(--drop); font-weight:bold;">(-$${diff})</span>
+                    `;
+                    historyList.appendChild(li);
+                });
+            }
         } else {
             historyList.innerHTML = '';
             data.forEach(log => {
                 const li = document.createElement('li');
                 li.className = 'history-item';
-                const dateStr = log.date_dropped ? log.date_dropped.substring(0, 10) : '';
-                const diff = (log.previous_price - log.new_price).toFixed(2);
+                const dateStr = log.logged_at ? log.logged_at.substring(0, 10) : '';
                 li.innerHTML = `
-                    <span><strong>${dateStr}</strong>: $${log.previous_price.toFixed(2)} → $${log.new_price.toFixed(2)}</span>
-                    <span style="color:var(--drop); font-weight:bold;">(-$${diff})</span>
+                    <span><strong>${dateStr}</strong>: ${log.change_description}</span>
+                    <span style="color:var(--muted-text); font-size:10px;">${log.logged_at ? log.logged_at.substring(11, 16) : ''}</span>
                 `;
                 historyList.appendChild(li);
             });
@@ -2413,6 +2451,8 @@ Return concise HTML bullet points covering:
     async function saveEditModal() {
         const id = document.getElementById('editItemId').value;
         const oldPrice = parseFloat(document.getElementById('editOldPrice').value) || 0;
+        const originalState = JSON.parse(document.getElementById('editOriginalItemState').value || '{}');
+
         const itemName = document.getElementById('editItemName').value.trim();
         const platform = document.getElementById('editPlatform').value;
         const cost = parseFloat(document.getElementById('editItemCost').value) || 0;
@@ -2437,6 +2477,18 @@ Return concise HTML bullet points covering:
             localStorage.setItem(`curator_ebay_url_${id}`, ebayUrl);
         }
 
+        // Detect all changes made for audit history log
+        let changes = [];
+        if (originalState.item_name !== itemName) changes.push(`Name changed: "${originalState.item_name}" → "${itemName}"`);
+        if (originalState.platform !== platform) changes.push(`Platform: ${originalState.platform} → ${platform}`);
+        if (originalState.status !== status) changes.push(`Status: ${originalState.status} → ${status}`);
+        if (originalState.list_price !== listPrice) changes.push(`List Price: $${originalState.list_price.toFixed(2)} → $${listPrice.toFixed(2)}`);
+        if (originalState.item_cost !== cost) changes.push(`Cost: $${originalState.item_cost.toFixed(2)} → $${cost.toFixed(2)}`);
+        if (originalState.ebay_url !== ebayUrl) changes.push(ebayUrl ? 'eBay link added/updated' : 'eBay link removed');
+        if (originalState.ebay_watchers !== ebayWatchers) changes.push(`Watchers synced: ${originalState.ebay_watchers} → ${ebayWatchers}`);
+        if (originalState.ebay_views !== ebayViews) changes.push(`Views synced: ${originalState.ebay_views} → ${ebayViews}`);
+        if (originalState.ebay_offers !== ebayOffers) changes.push(`Offers/Bids: ${originalState.ebay_offers} → ${ebayOffers}`);
+
         const targetMargin = listPrice - cost;
         const netProfit = status === 'Sold' ? totalPayout - cost : 0;
         const dropTimestamp = customDropDate ? new Date(customDropDate).toISOString() : new Date().toISOString();
@@ -2460,7 +2512,6 @@ Return concise HTML bullet points covering:
 
         if (listPrice < oldPrice) {
             updatePayload.last_price_drop = dropTimestamp;
-            
             await supabaseClient.from('curator_price_drops').insert([{
                 listing_id: id,
                 previous_price: oldPrice,
@@ -2469,13 +2520,24 @@ Return concise HTML bullet points covering:
             }]);
         }
 
+        // Save Audit logs if any changes were detected
+        if (changes.length > 0) {
+            const nowIso = new Date().toISOString();
+            for (let change of changes) {
+                await supabaseClient.from('curator_audit_logs').insert([{
+                    listing_id: id,
+                    change_description: change,
+                    logged_at: nowIso
+                }]).catch(() => {}); // Fallback silently if table doesn't exist yet
+            }
+        }
+
         let { error } = await supabaseClient
             .from('curator_listings')
             .update(updatePayload)
             .eq('id', id);
 
         if (error && error.message && (error.message.includes('ebay_url') || error.message.includes('ebay_watchers'))) {
-            console.warn('New metric columns not found in database; saving core fields.');
             delete updatePayload.ebay_url;
             delete updatePayload.ebay_watchers;
             delete updatePayload.ebay_views;
