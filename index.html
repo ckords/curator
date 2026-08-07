@@ -295,6 +295,8 @@
             border: none;
             cursor: pointer;
             font-weight: bold;
+            border-radius: 6px;
+            padding: 10px 14px;
             transition: opacity 0.2s, background-color 0.3s;
         }
         button:hover { opacity: 0.9; }
@@ -307,6 +309,7 @@
             background-color: var(--ai-info) !important; 
             color: white !important;
         }
+        .btn-ai-trigger:hover { background-color: #763e9b !important; }
         .btn-import { 
             background-color: var(--payout) !important; 
             color: white !important;
@@ -314,10 +317,14 @@
         .btn-camera {
             background-color: var(--secondary) !important;
             color: white !important;
+            padding: 12px 10px !important;
+            border-radius: 6px !important;
         }
         .btn-barcode {
             background-color: var(--comp) !important;
             color: white !important;
+            padding: 12px 10px !important;
+            border-radius: 6px !important;
         }
 
         /* Chart Filter Controls */
@@ -499,7 +506,12 @@
             gap: 10px;
             margin-top: 20px;
         }
-        .btn-cancel { background-color: #95a5a6 !important; color: white !important; }
+        .btn-cancel { 
+            background-color: #7f8c8d !important; 
+            color: white !important; 
+            border-radius: 6px !important;
+            padding: 10px 16px !important;
+        }
 
         /* History Log Container in Edit Modal */
         .history-log-box {
@@ -572,7 +584,7 @@
             background: var(--primary);
             color: white !important;
             text-decoration: none;
-            border-radius: 4px;
+            border-radius: 6px;
             font-size: 12px;
             font-weight: bold;
             transition: opacity 0.2s;
@@ -938,7 +950,7 @@
 
         <div class="modal-actions">
             <button class="btn-cancel" onclick="closeImportModal()">Cancel</button>
-            <button onclick="processListingImport()">Import Item</button>
+            <button class="btn-import" onclick="processListingImport()">Import Item</button>
         </div>
     </div>
 </div>
@@ -993,7 +1005,7 @@
 
         <!-- AI & Search Action Buttons -->
         <div style="display:flex; gap:10px; margin-bottom:15px;">
-            <button onclick="generateAiDetails()" class="btn-ai-trigger" style="flex:1;">✨ Generate AI Insights</button>
+            <button onclick="generateAiDetails()" class="btn-ai-trigger" style="flex:1; border-radius:6px; padding:12px;">✨ Generate AI Insights</button>
             <a id="linkLens" href="#" target="_blank" class="comp-link-btn btn-lens" style="flex:1; margin:0; display:flex; align-items:center; justify-content:center;">Open Google Lens</a>
         </div>
 
@@ -1046,7 +1058,7 @@
 
         <div class="modal-actions">
             <button class="btn-cancel" onclick="closeAnalysisModal()">Close</button>
-            <button class="btn-add" onclick="applyAnalysisToForm()">Apply Default Price (High)</button>
+            <button class="btn-add" onclick="applyAnalysisToForm()" style="border-radius:6px; padding:10px 16px;">Apply Default Price (High)</button>
         </div>
     </div>
 </div>
@@ -1072,7 +1084,7 @@
 
         <div class="modal-actions">
             <button class="btn-cancel" onclick="closeModal()">Cancel</button>
-            <button class="btn-sold" onclick="confirmSold()">Save Sale</button>
+            <button class="btn-sold" onclick="confirmSold()" style="padding:10px 16px;">Save Sale</button>
         </div>
     </div>
 </div>
@@ -1146,7 +1158,7 @@
 
         <div class="modal-actions">
             <button class="btn-cancel" onclick="closeEditModal()">Cancel</button>
-            <button class="btn-sold" onclick="saveEditModal()">Save Changes</button>
+            <button class="btn-sold" onclick="saveEditModal()" style="padding:10px 16px;">Save Changes</button>
         </div>
     </div>
 </div>
