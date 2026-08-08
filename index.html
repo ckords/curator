@@ -622,6 +622,17 @@
         }
         .history-item:last-child { border-bottom: none; }
 
+        /* Price Reduction Modal Analysis Box */
+        .modal-analysis-card {
+            background: var(--card-bg);
+            border: 1px solid var(--drop);
+            border-radius: 6px;
+            padding: 14px;
+            margin-top: 15px;
+            font-size: 12px;
+            line-height: 1.5;
+        }
+
         /* Unified Analysis Box Styles */
         .dropzone {
             border: 2px dashed var(--payout);
@@ -1262,6 +1273,20 @@
             </div>
         </div>
 
+        <!-- Full-Width Price Reduction Analysis Button -->
+        <button type="button" class="btn-ai-trigger" style="width: 100%; margin-top: 5px; margin-bottom: 10px; padding: 12px; font-size: 13px; background-color: var(--drop) !important;" onclick="runModalPriceReductionAnalysis()">
+            ⚡ Price Reduction Analysis
+        </button>
+
+        <!-- Price Reduction Analysis Output Card -->
+        <div id="modalPriceAnalysisCard" class="modal-analysis-card" style="display: none;">
+            <div style="font-weight: bold; color: var(--primary); font-size: 13px; margin-bottom: 6px;" id="modalAnalysisTitle">📊 Smart Price Reduction Analysis</div>
+            <div id="modalAnalysisBody" style="color: var(--text);"></div>
+            <div style="display: flex; justify-content: flex-end; margin-top: 10px; gap: 8px;">
+                <button type="button" id="btnApplyModalPriceDrop" class="apply-btn-pill" style="padding: 6px 12px; font-size: 12px;" onclick="applyModalSuggestedPriceDrop()">Apply Suggested Price</button>
+            </div>
+        </div>
+
         <!-- Activity History Log Section inside Edit Modal -->
         <div class="history-log-box">
             <div class="history-log-title">📜 Item Audit & Activity History</div>
@@ -1316,6 +1341,7 @@
     let drillDownFilter = null; // Stores current drill-down state (e.g., month or year)
 
     let calculatedCompPrices = { low: 0, mid: 0, high: 0, rec: 0 };
+    let currentModalSuggestedPrice = null;
 
     // Helper: Formats ISO timestamp or Date object into Central Time YYYY-MM-DD and 24-Hour Military HH:mm
     function formatCentralTimestamp(dateInput) {
@@ -2279,6 +2305,68 @@ Return concise HTML bullet points covering:
         closeAnalysisModal();
     }
 
+    // Modal Price Reduction Analysis
+    function runModalPriceReductionAnalysis() {
+        const listPrice = parseFloat(document.getElementById('editListPrice').value) || 0;
+        const itemCost = parseFloat(document.getElementById('editItemCost').value) || 0;
+        const watchers = parseInt(document.getElementById('metricWatchers').value) || 0;
+        const views = parseInt(document.getElementById('metricViews').value) || 0;
+        const offers = parseInt(document.getElementById('metricOffers').value) || 0;
+
+        const dateListedStr = document.getElementById('editDateListed').value;
+        const dateReducedStr = document.getElementById('editDatePriceReduced').value;
+
+        const today = new Date();
+        const totalDays = dateListedStr ? Math.ceil(Math.abs(today - new Date(dateListedStr)) / (1000 * 60 * 60 * 24)) - 1 : 0;
+        const daysSinceDrop = dateReducedStr ? Math.ceil(Math.abs(today - new Date(dateReducedStr)) / (1000 * 60 * 60 * 24)) - 1 : totalDays;
+
+        let recDropPct = 0.10;
+        let reasoning = "";
+
+        if (watchers > 0) {
+            recDropPct = 0.10;
+            reasoning = `There are <strong>${watchers} active watchers</strong>. A 10% reduction triggers automated push alerts to interested buyer accounts.`;
+        } else if (views > 10) {
+            recDropPct = 0.12;
+            reasoning = `The listing has accumulated <strong>${views} views</strong> with 0 watchers, signaling high impression interest but price friction. A 12% drop encourages buyer conversion.`;
+        } else if (daysSinceDrop >= 14) {
+            recDropPct = 0.15;
+            reasoning = `No price adjustment in <strong>${daysSinceDrop} days</strong> and low traffic (${views} views). A 15% reduction helps re-index search placement.`;
+        } else {
+            recDropPct = 0.10;
+            reasoning = `Standard price adjustment for exposure management (${totalDays} total days active).`;
+        }
+
+        let suggestedPrice = listPrice * (1 - recDropPct);
+        if (suggestedPrice < itemCost) {
+            suggestedPrice = itemCost;
+            reasoning += ` <em>(Adjusted to cost baseline of $${itemCost.toFixed(2)} to protect margin).</em>`;
+        }
+
+        currentModalSuggestedPrice = suggestedPrice;
+
+        const card = document.getElementById('modalPriceAnalysisCard');
+        const body = document.getElementById('modalAnalysisBody');
+
+        body.innerHTML = `
+            • <strong>Exposure Time:</strong> ${totalDays} total days active (${daysSinceDrop} days since last reduction)<br>
+            • <strong>Engagement Data:</strong> ${views} Views | ${watchers} Watchers | ${offers} Offers/Bids<br>
+            • <strong>Current Margin:</strong> $${(listPrice - itemCost).toFixed(2)} ($${itemCost.toFixed(2)} cost → $${listPrice.toFixed(2)} list)<br>
+            • <strong>Suggested Price:</strong> <span style="color:var(--profit); font-weight:bold; font-size:14px;">$${suggestedPrice.toFixed(2)}</span> (-${(recDropPct * 100).toFixed(0)}%)<br>
+            • <strong>Strategy Rationale:</strong> ${reasoning}
+        `;
+
+        card.style.display = 'block';
+    }
+
+    function applyModalSuggestedPriceDrop() {
+        if (currentModalSuggestedPrice !== null) {
+            document.getElementById('editListPrice').value = currentModalSuggestedPrice.toFixed(2);
+            document.getElementById('editDatePriceReduced').value = formatCentralTimestamp().dateStr;
+            alert(`Updated list price to $${currentModalSuggestedPrice.toFixed(2)}. Remember to click 'Save Changes' to log it!`);
+        }
+    }
+
     // 10. Sort Handler
     function sortTable(columnKey) {
         if (currentSortColumn === columnKey) {
@@ -2478,6 +2566,9 @@ Return concise HTML bullet points covering:
         document.getElementById('metricWatchers').value = item.ebay_watchers || 0;
         document.getElementById('metricViews').value = item.ebay_views || 0;
         document.getElementById('metricOffers').value = item.ebay_offers || 0;
+
+        document.getElementById('modalPriceAnalysisCard').style.display = 'none';
+        currentModalSuggestedPrice = null;
 
         document.getElementById('editOriginalItemState').value = JSON.stringify({
             item_name: item.item_name || '',
