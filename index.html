@@ -235,8 +235,7 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
-            cursor: pointer;
-            user-select: none;
+            cursor: pointer; user-select: none;
         }
         body.dark-mode .collapsible-header {
             color: #121212;
@@ -1336,8 +1335,7 @@
 
         return {
             dateStr: dateStr,
-            timeStr: timeStr,
-            fullIsoCentral: `${dateStr}T${timeStr}:00`
+            timeStr: timeStr
         };
     }
 
@@ -2351,7 +2349,7 @@ Return concise HTML bullet points covering:
         }
 
         const margin = price - cost;
-        const centralTime = formatCentralTimestamp();
+        const nowIso = new Date().toISOString();
 
         const payload = {
             item_name: name,
@@ -2359,7 +2357,7 @@ Return concise HTML bullet points covering:
             item_cost: cost,
             list_price: price,
             date_listed: dateStr,
-            last_price_drop: centralTime.fullIsoCentral,
+            last_price_drop: nowIso,
             target_margin: margin,
             calculated_baseline: price,
             status: 'Active'
@@ -2569,8 +2567,8 @@ Return concise HTML bullet points covering:
 
         const targetMargin = listPrice - cost;
         const netProfit = (status === 'Sold' || status === 'Pending') ? totalPayout - cost : 0;
-        const centralTime = formatCentralTimestamp();
-        const dropTimestamp = customDropDate ? `${customDropDate}T${centralTime.timeStr}:00` : centralTime.fullIsoCentral;
+        const nowIso = new Date().toISOString();
+        const dropTimestamp = customDropDate ? `${customDropDate}T12:00:00.000Z` : nowIso;
 
         const updatePayload = {
             item_name: itemName,
@@ -2609,7 +2607,7 @@ Return concise HTML bullet points covering:
                     await supabaseClient.from('curator_audit_logs').insert([{
                         listing_id: id,
                         change_description: change,
-                        logged_at: centralTime.fullIsoCentral
+                        logged_at: nowIso
                     }]);
                 } catch (e) {
                     console.warn('Could not save audit log:', e);
