@@ -34,6 +34,7 @@
             --ai-info: #8e44ad;
             --expense: #c0392b;
             --drop: #e67e22;
+            --pending: #f39c12;
             
             /* Structural & Component Colors */
             --container-bg: #ffffff;
@@ -50,6 +51,7 @@
             --banner-bg: #edf2f7;
             --chart-header-bg: #edf2f7;
             --action-needed: #fff4e5;
+            --pending-bg: #fef9e7;
         }
 
         body.dark-mode {
@@ -70,6 +72,7 @@
             --banner-bg: #2a2a2a;
             --chart-header-bg: #2d2d2d;
             --action-needed: #42301c;
+            --pending-bg: #3a2e19;
         }
 
         *, *:before, *:after {
@@ -238,6 +241,10 @@
         body.dark-mode .collapsible-header {
             color: #121212;
         }
+        .collapsible-header.header-pending {
+            background: var(--pending);
+            color: #fff;
+        }
         .collapsible-header.header-sold {
             background: var(--sold);
             color: #fff;
@@ -265,6 +272,22 @@
             display: block;
         }
         .is-collapsed .collapsible-content { display: none; }
+
+        /* Checklist Styling for Pending State */
+        .pending-checklist {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            font-size: 11px;
+            text-align: left;
+        }
+        .pending-checklist label {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            cursor: pointer;
+            user-select: none;
+        }
 
         /* FORM GRID & EXPLICIT BUTTON COLOR RULES */
         .form-grid {
@@ -458,6 +481,7 @@
             font-size: 12px;
         }
         .status-sold { background-color: var(--sold-bg); color: var(--sold); }
+        .status-pending { background-color: var(--pending-bg); }
         .profit-text { color: var(--profit); font-weight: bold; }
         .payout-text { color: var(--payout); font-weight: bold; }
         .fee-text { color: var(--expense); font-weight: bold; }
@@ -491,6 +515,7 @@
         .btn-sold:hover { background-color: #1e8449 !important; }
         .btn-delete { background-color: #e74c3c !important; }
         .btn-delete:hover { background-color: #c0392b !important; }
+        .btn-label { background-color: #e67e22 !important; }
 
         /* Modals */
         .modal-overlay {
@@ -885,6 +910,7 @@
             <select id="statusFilter" class="filter-select" onchange="filterTable()">
                 <option value="All">All Items</option>
                 <option value="Active">Active Only</option>
+                <option value="Pending">Pending Shipping</option>
                 <option value="Sold">Sold Only</option>
             </select>
 
@@ -927,6 +953,31 @@
                 </thead>
                 <tbody id="activeBody">
                     <!-- Active listings populate here -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- PENDING SHIPPING LISTINGS COLLAPSIBLE TABLE -->
+    <div class="collapsible-wrapper" id="pendingGroup">
+        <div class="collapsible-header header-pending" onclick="toggleSection('pendingGroup')">
+            <span class="collapsible-title">⏳ Pending Shipping & Label Generation (<span id="pendingCount">0</span>)</span>
+            <button class="toggle-btn" id="label-pendingGroup">▲ Hide Table</button>
+        </div>
+        <div class="collapsible-content">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Item Name</th>
+                        <th>Platform</th>
+                        <th>Sale Price</th>
+                        <th>Order Earnings</th>
+                        <th>Fulfillment Checklist</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="pendingBody">
+                    <!-- Pending items populate here -->
                 </tbody>
             </table>
         </div>
@@ -1172,6 +1223,7 @@
                 <label for="editStatus">Status</label>
                 <select id="editStatus">
                     <option value="Active">Active</option>
+                    <option value="Pending">Pending Shipping</option>
                     <option value="Sold">Sold</option>
                 </select>
             </div>
@@ -1228,7 +1280,7 @@
 <!-- Modal Pop-Up for Completing Sale -->
 <div class="modal-overlay" id="soldModal">
     <div class="modal-content">
-        <h2 id="modalTitle">Complete Sale</h2>
+        <h2 id="modalTitle">Record Pending Sale</h2>
         
         <input type="hidden" id="modalItemId">
         <input type="hidden" id="modalItemCost">
@@ -1246,7 +1298,7 @@
 
         <div class="modal-actions">
             <button class="btn-cancel" onclick="closeModal()">Cancel</button>
-            <button class="btn-sold" onclick="confirmSold()" style="padding:10px 16px;">Save Sale</button>
+            <button class="btn-sold" onclick="confirmSold()" style="padding:10px 16px;">Move to Pending</button>
         </div>
     </div>
 </div>
@@ -2516,7 +2568,7 @@ Return concise HTML bullet points covering:
         if (originalState.ebay_offers !== undefined && originalState.ebay_offers !== ebayOffers) changes.push(`Offers/Bids: ${originalState.ebay_offers} → ${ebayOffers}`);
 
         const targetMargin = listPrice - cost;
-        const netProfit = status === 'Sold' ? totalPayout - cost : 0;
+        const netProfit = (status === 'Sold' || status === 'Pending') ? totalPayout - cost : 0;
         const centralTime = formatCentralTimestamp();
         const dropTimestamp = customDropDate ? `${customDropDate}T${centralTime.timeStr}:00` : centralTime.fullIsoCentral;
 
@@ -2526,8 +2578,8 @@ Return concise HTML bullet points covering:
             item_cost: cost,
             list_price: listPrice,
             status: status,
-            actual_sale_price: status === 'Sold' ? actualSale : 0,
-            total_payout: status === 'Sold' ? totalPayout : 0,
+            actual_sale_price: (status === 'Sold' || status === 'Pending') ? actualSale : 0,
+            total_payout: (status === 'Sold' || status === 'Pending') ? totalPayout : 0,
             net_profit: netProfit,
             target_margin: targetMargin,
             date_listed: dateListed,
@@ -2595,9 +2647,9 @@ Return concise HTML bullet points covering:
         fetchListings();
     }
 
-    // 14. Handle Sold Modal Action
+    // 14. Handle Pending & Sold Modal Actions
     async function toggleSold(item) {
-        if (item.status === 'Sold') {
+        if (item.status === 'Sold' || item.status === 'Pending') {
             const { error } = await supabaseClient
                 .from('curator_listings')
                 .update({ 
@@ -2615,7 +2667,7 @@ Return concise HTML bullet points covering:
 
         document.getElementById('modalItemId').value = item.id;
         document.getElementById('modalItemCost').value = item.item_cost;
-        document.getElementById('modalTitle').innerText = `Complete Sale: ${item.item_name}`;
+        document.getElementById('modalTitle').innerText = `Record Pending Sale: ${item.item_name}`;
         
         document.getElementById('modalSalePrice').value = item.list_price;
         document.getElementById('modalTotalPayout').value = '';
@@ -2639,7 +2691,7 @@ Return concise HTML bullet points covering:
         const { error } = await supabaseClient
             .from('curator_listings')
             .update({
-                status: 'Sold',
+                status: 'Pending',
                 actual_sale_price: salePrice,
                 total_payout: totalPayout,
                 net_profit: netProfit
@@ -2647,12 +2699,53 @@ Return concise HTML bullet points covering:
             .eq('id', id);
 
         if (error) {
-            console.error('Error marking as sold:', error);
+            console.error('Error marking as pending:', error);
             alert('Failed to update status.');
             return;
         }
 
         closeModal();
+        fetchListings();
+    }
+
+    // Toggle Checklist items for Pending items
+    function updatePendingChecklist(itemId) {
+        const chk1 = document.getElementById(`chk_label_${itemId}`).checked;
+        const chk2 = document.getElementById(`chk_packed_${itemId}`).checked;
+        const chk3 = document.getElementById(`chk_dropped_${itemId}`).checked;
+
+        localStorage.setItem(`pending_chk_${itemId}`, JSON.stringify({ label: chk1, packed: chk2, dropped: chk3 }));
+
+        const finalizeBtn = document.getElementById(`btn_finalize_${itemId}`);
+        if (finalizeBtn) {
+            finalizeBtn.disabled = !(chk1 && chk2 && chk3);
+            finalizeBtn.style.opacity = (chk1 && chk2 && chk3) ? "1" : "0.5";
+        }
+    }
+
+    // Open shipping portal link directly
+    function openShippingPortal(ebayUrl) {
+        if (ebayUrl && ebayUrl.includes('ebay.com')) {
+            window.open('https://www.ebay.com/sh/ord/?filter=status%3AAWAITING_SHIPMENT', '_blank');
+        } else {
+            window.open('https://www.google.com/search?q=print+shipping+label', '_blank');
+        }
+    }
+
+    // Finalize pending item into Sold state
+    async function finalizePendingToSold(id) {
+        const { error } = await supabaseClient
+            .from('curator_listings')
+            .update({ status: 'Sold' })
+            .eq('id', id);
+
+        if (error) {
+            console.error('Error finalizing sale:', error);
+            alert('Failed to finalize sale.');
+            return;
+        }
+
+        localStorage.removeItem(`pending_chk_${id}`);
         fetchListings();
     }
 
@@ -2672,21 +2765,26 @@ Return concise HTML bullet points covering:
         }
 
         localStorage.removeItem(`curator_ebay_url_${id}`);
+        localStorage.removeItem(`pending_chk_${id}`);
         fetchListings();
     }
 
-    // 16. Render Split Tables (Active & Sold)
+    // 16. Render Split Tables (Active, Pending & Sold)
     function renderTables(inventoryData) {
         const activeTbody = document.getElementById('activeBody');
+        const pendingTbody = document.getElementById('pendingBody');
         const soldTbody = document.getElementById('soldBody');
 
         activeTbody.innerHTML = '';
+        pendingTbody.innerHTML = '';
         soldTbody.innerHTML = '';
 
-        const activeItems = inventoryData.filter(i => i.status !== 'Sold');
+        const activeItems = inventoryData.filter(i => i.status !== 'Sold' && i.status !== 'Pending');
+        const pendingItems = inventoryData.filter(i => i.status === 'Pending');
         const soldItems = inventoryData.filter(i => i.status === 'Sold');
 
         document.getElementById('activeCount').innerText = activeItems.length;
+        document.getElementById('pendingCount').innerText = pendingItems.length;
         document.getElementById('soldCount').innerText = soldItems.length;
 
         // Render Active Listings Table
@@ -2734,6 +2832,46 @@ Return concise HTML bullet points covering:
                     </td>
                 `;
                 activeTbody.appendChild(row);
+            });
+        }
+
+        // Render Pending Shipping Table
+        if (pendingItems.length === 0) {
+            pendingTbody.innerHTML = '<tr><td colspan="6" style="text-align:center; color:var(--muted-text);">No pending items awaiting shipment.</td></tr>';
+        } else {
+            pendingItems.forEach(item => {
+                const row = document.createElement('tr');
+                row.classList.add('status-pending');
+
+                const savedChk = JSON.parse(localStorage.getItem(`pending_chk_${item.id}`) || '{"label":false,"packed":false,"dropped":false}');
+                const isReady = savedChk.label && savedChk.packed && savedChk.dropped;
+
+                const itemJson = JSON.stringify(item).replace(/'/g, "&apos;");
+
+                row.innerHTML = `
+                    <td data-label="Item Name">
+                        <strong class="item-title-link" onclick='openEditModal(${itemJson})'>${item.item_name}</strong>
+                    </td>
+                    <td data-label="Platform">${item.platform}</td>
+                    <td data-label="Sale Price">$${(item.actual_sale_price || 0).toFixed(2)}</td>
+                    <td data-label="Order Earnings" class="payout-text">$${(item.total_payout || 0).toFixed(2)}</td>
+                    <td data-label="Checklist">
+                        <div class="pending-checklist">
+                            <label><input type="checkbox" id="chk_label_${item.id}" ${savedChk.label ? 'checked' : ''} onchange="updatePendingChecklist(${item.id})"> 📦 Label Generated</label>
+                            <label><input type="checkbox" id="chk_packed_${item.id}" ${savedChk.packed ? 'checked' : ''} onchange="updatePendingChecklist(${item.id})"> 🏷️ Packed & Labeled</label>
+                            <label><input type="checkbox" id="chk_dropped_${item.id}" ${savedChk.dropped ? 'checked' : ''} onchange="updatePendingChecklist(${item.id})"> 🚚 Handed to Carrier</label>
+                        </div>
+                    </td>
+                    <td data-label="Actions">
+                        <div class="action-grid">
+                            <button class="action-btn btn-label" onclick='openShippingPortal("${item.ebay_url || ''}")'>🏷️ Label</button>
+                            <button class="action-btn btn-sold" id="btn_finalize_${item.id}" onclick="finalizePendingToSold(${item.id})" style="opacity:${isReady ? '1' : '0.5'};" ${isReady ? '' : 'disabled'}>Finalize</button>
+                            <button class="action-btn btn-edit" onclick='openEditModal(${itemJson})'>Edit</button>
+                            <button class="action-btn btn-delete" onclick="deleteItem(${item.id}, '${item.item_name.replace(/"/g, '&quot;')}')">Delete</button>
+                        </div>
+                    </td>
+                `;
+                pendingTbody.appendChild(row);
             });
         }
 
