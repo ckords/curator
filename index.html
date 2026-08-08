@@ -486,10 +486,10 @@
         .payout-text { color: var(--payout); font-weight: bold; }
         .fee-text { color: var(--expense); font-weight: bold; }
         
-        /* Action Needed Row Highlighting */
+        /* Action Needed Row Highlighting for 10+ Day Stale Items */
         .action-needed-row {
             background-color: var(--action-needed) !important;
-            border-left: 4px solid var(--drop) !important;
+            border-left: 5px solid var(--drop) !important;
         }
 
         /* Action Buttons 2x2 Grid */
@@ -921,7 +921,7 @@
             <select id="statusFilter" class="filter-select" onchange="filterTable()">
                 <option value="All">All Items</option>
                 <option value="Active">Active Only</option>
-                <option value="Pending">Pending Fulfillment</option>
+                <option value="Pending">Pending</option>
                 <option value="Sold">Sold Only</option>
             </select>
 
@@ -969,10 +969,10 @@
         </div>
     </div>
 
-    <!-- PENDING FULFILLMENT LISTINGS COLLAPSIBLE TABLE -->
+    <!-- PENDING LISTINGS COLLAPSIBLE TABLE -->
     <div class="collapsible-wrapper" id="pendingGroup">
         <div class="collapsible-header header-pending" onclick="toggleSection('pendingGroup')">
-            <span class="collapsible-title">⏳ Pending Fulfillment & Pickup (<span id="pendingCount">0</span>)</span>
+            <span class="collapsible-title">⌛ Pending (<span id="pendingCount">0</span>)</span>
             <button class="toggle-btn" id="label-pendingGroup">▲ Hide Table</button>
         </div>
         <div class="collapsible-content">
@@ -1234,7 +1234,7 @@
                 <label for="editStatus">Status</label>
                 <select id="editStatus">
                     <option value="Active">Active</option>
-                    <option value="Pending">Pending Fulfillment</option>
+                    <option value="Pending">Pending</option>
                     <option value="Sold">Sold</option>
                 </select>
             </div>
@@ -1434,7 +1434,7 @@
         openAnalysisModal(title);
     }
 
-    // 4. Fetch listings from Supabase
+    // 4. Fetch listings from Supabase & Sort Stale (10+ day) active items to top
     async function fetchListings() {
         const { data, error } = await supabaseClient
             .from('curator_listings')
@@ -1446,7 +1446,29 @@
             return;
         }
 
-        allInventoryData = data || [];
+        const rawData = data || [];
+        const today = new Date();
+
+        // Organize active items so stale items (10+ days since drop) appear first upon refresh
+        rawData.sort((a, b) => {
+            if (a.status === 'Active' && b.status === 'Active') {
+                const dropA = a.last_price_drop ? new Date(a.last_price_drop) : new Date(a.date_listed);
+                const dropB = b.last_price_drop ? new Date(b.last_price_drop) : new Date(b.date_listed);
+                
+                const daysA = Math.ceil(Math.abs(today - dropA) / (1000 * 60 * 60 * 24)) - 1;
+                const daysB = Math.ceil(Math.abs(today - dropB) / (1000 * 60 * 60 * 24)) - 1;
+
+                const staleA = daysA >= 10;
+                const staleB = daysB >= 10;
+
+                if (staleA && !staleB) return -1;
+                if (!staleA && staleB) return 1;
+                return daysB - daysA; // Sort higher days first among stale items
+            }
+            return 0;
+        });
+
+        allInventoryData = rawData;
         filterTable();
     }
 
@@ -2958,7 +2980,7 @@ Return concise HTML bullet points covering:
             });
         }
 
-        // Render Pending Fulfillment Table
+        // Render Pending Table
         if (pendingItems.length === 0) {
             pendingTbody.innerHTML = '<tr><td colspan="6" style="text-align:center; color:var(--muted-text);">No pending items awaiting fulfillment.</td></tr>';
         } else {
