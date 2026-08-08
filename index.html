@@ -910,7 +910,7 @@
             <select id="statusFilter" class="filter-select" onchange="filterTable()">
                 <option value="All">All Items</option>
                 <option value="Active">Active Only</option>
-                <option value="Pending">Pending Shipping</option>
+                <option value="Pending">Pending Fulfillment</option>
                 <option value="Sold">Sold Only</option>
             </select>
 
@@ -958,10 +958,10 @@
         </div>
     </div>
 
-    <!-- PENDING SHIPPING LISTINGS COLLAPSIBLE TABLE -->
+    <!-- PENDING FULFILLMENT LISTINGS COLLAPSIBLE TABLE -->
     <div class="collapsible-wrapper" id="pendingGroup">
         <div class="collapsible-header header-pending" onclick="toggleSection('pendingGroup')">
-            <span class="collapsible-title">⏳ Pending Shipping & Label Generation (<span id="pendingCount">0</span>)</span>
+            <span class="collapsible-title">⏳ Pending Fulfillment & Pickup (<span id="pendingCount">0</span>)</span>
             <button class="toggle-btn" id="label-pendingGroup">▲ Hide Table</button>
         </div>
         <div class="collapsible-content">
@@ -1223,7 +1223,7 @@
                 <label for="editStatus">Status</label>
                 <select id="editStatus">
                     <option value="Active">Active</option>
-                    <option value="Pending">Pending Shipping</option>
+                    <option value="Pending">Pending Fulfillment</option>
                     <option value="Sold">Sold</option>
                 </select>
             </div>
@@ -2710,11 +2710,11 @@ Return concise HTML bullet points covering:
 
     // Toggle Checklist items for Pending items
     function updatePendingChecklist(itemId) {
-        const chk1 = document.getElementById(`chk_label_${itemId}`).checked;
-        const chk2 = document.getElementById(`chk_packed_${itemId}`).checked;
-        const chk3 = document.getElementById(`chk_dropped_${itemId}`).checked;
+        const chk1 = document.getElementById(`chk_step1_${itemId}`).checked;
+        const chk2 = document.getElementById(`chk_step2_${itemId}`).checked;
+        const chk3 = document.getElementById(`chk_step3_${itemId}`).checked;
 
-        localStorage.setItem(`pending_chk_${itemId}`, JSON.stringify({ label: chk1, packed: chk2, dropped: chk3 }));
+        localStorage.setItem(`pending_chk_${itemId}`, JSON.stringify({ step1: chk1, step2: chk2, step3: chk3 }));
 
         const finalizeBtn = document.getElementById(`btn_finalize_${itemId}`);
         if (finalizeBtn) {
@@ -2835,16 +2835,22 @@ Return concise HTML bullet points covering:
             });
         }
 
-        // Render Pending Shipping Table
+        // Render Pending Fulfillment Table
         if (pendingItems.length === 0) {
-            pendingTbody.innerHTML = '<tr><td colspan="6" style="text-align:center; color:var(--muted-text);">No pending items awaiting shipment.</td></tr>';
+            pendingTbody.innerHTML = '<tr><td colspan="6" style="text-align:center; color:var(--muted-text);">No pending items awaiting fulfillment.</td></tr>';
         } else {
             pendingItems.forEach(item => {
                 const row = document.createElement('tr');
                 row.classList.add('status-pending');
 
-                const savedChk = JSON.parse(localStorage.getItem(`pending_chk_${item.id}`) || '{"label":false,"packed":false,"dropped":false}');
-                const isReady = savedChk.label && savedChk.packed && savedChk.dropped;
+                const savedChk = JSON.parse(localStorage.getItem(`pending_chk_${item.id}`) || '{"step1":false,"step2":false,"step3":false}');
+                const isReady = savedChk.step1 && savedChk.step2 && savedChk.step3;
+
+                const isFacebook = (item.platform || '').toLowerCase().includes('facebook');
+
+                const step1Label = isFacebook ? '📅 Scheduled Pickup' : '📦 Label Generated';
+                const step2Label = isFacebook ? '💵 Paid' : '🏷️ Packed & Labeled';
+                const step3Label = isFacebook ? '🤝 Picked Up' : '🚚 Handed to Carrier';
 
                 const itemJson = JSON.stringify(item).replace(/'/g, "&apos;");
 
@@ -2857,15 +2863,15 @@ Return concise HTML bullet points covering:
                     <td data-label="Order Earnings" class="payout-text">$${(item.total_payout || 0).toFixed(2)}</td>
                     <td data-label="Checklist">
                         <div class="pending-checklist">
-                            <label><input type="checkbox" id="chk_label_${item.id}" ${savedChk.label ? 'checked' : ''} onchange="updatePendingChecklist(${item.id})"> 📦 Label Generated</label>
-                            <label><input type="checkbox" id="chk_packed_${item.id}" ${savedChk.packed ? 'checked' : ''} onchange="updatePendingChecklist(${item.id})"> 🏷️ Packed & Labeled</label>
-                            <label><input type="checkbox" id="chk_dropped_${item.id}" ${savedChk.dropped ? 'checked' : ''} onchange="updatePendingChecklist(${item.id})"> 🚚 Handed to Carrier</label>
+                            <label><input type="checkbox" id="chk_step1_${item.id}" ${savedChk.step1 ? 'checked' : ''} onchange="updatePendingChecklist(${item.id})"> ${step1Label}</label>
+                            <label><input type="checkbox" id="chk_step2_${item.id}" ${savedChk.step2 ? 'checked' : ''} onchange="updatePendingChecklist(${item.id})"> ${step2Label}</label>
+                            <label><input type="checkbox" id="chk_step3_${item.id}" ${savedChk.step3 ? 'checked' : ''} onchange="updatePendingChecklist(${item.id})"> ${step3Label}</label>
                         </div>
                     </td>
                     <td data-label="Actions">
                         <div class="action-grid">
-                            <button class="action-btn btn-label" onclick='openShippingPortal("${item.ebay_url || ''}")'>🏷️ Label</button>
-                            <button class="action-btn btn-sold" id="btn_finalize_${item.id}" onclick="finalizePendingToSold(${item.id})" style="opacity:${isReady ? '1' : '0.5'};" ${isReady ? '' : 'disabled'}>Finalize</button>
+                            ${isFacebook ? '' : `<button class="action-btn btn-label" onclick='openShippingPortal("${item.ebay_url || ''}")'>🏷️ Label</button>`}
+                            <button class="action-btn btn-sold" id="btn_finalize_${item.id}" onclick="finalizePendingToSold(${item.id})" style="opacity:${isReady ? '1' : '0.5'}; ${isFacebook ? 'grid-column: span 2;' : ''}" ${isReady ? '' : 'disabled'}>Finalize</button>
                             <button class="action-btn btn-edit" onclick='openEditModal(${itemJson})'>Edit</button>
                             <button class="action-btn btn-delete" onclick="deleteItem(${item.id}, '${item.item_name.replace(/"/g, '&quot;')}')">Delete</button>
                         </div>
