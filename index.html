@@ -371,16 +371,14 @@
             border-radius: 6px;
             padding: 12px 15px;
             margin-bottom: 15px;
-            display: flex;
-            justify-content: space-around;
-            align-items: center;
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
             gap: 10px;
         }
         .ebay-metric-pill {
             display: flex;
             flex-direction: column;
             align-items: center;
-            flex: 1;
         }
         .ebay-metric-input {
             font-size: 16px;
@@ -762,6 +760,7 @@
             .filters-left { flex-direction: column; align-items: stretch; width: 100%; }
             .search-input, .filter-select, .date-group { width: 100%; }
             .date-group { flex-direction: column; align-items: flex-start; }
+            .ebay-metrics-box { grid-template-columns: repeat(2, 1fr); }
             
             table thead { display: none; }
             table, tbody, tr, td { display: block; width: 100%; }
@@ -1195,7 +1194,7 @@
         <input type="hidden" id="editOldPrice">
         <input type="hidden" id="editOriginalItemState">
 
-        <!-- eBay Live Metrics Box -->
+        <!-- eBay Live Metrics Box (4 Metrics) -->
         <div class="ebay-metrics-box" id="ebayMetricsContainer">
             <div class="ebay-metric-pill">
                 <input type="number" id="metricWatchers" class="ebay-metric-input" value="0">
@@ -1209,7 +1208,10 @@
                 <input type="number" id="metricOffers" class="ebay-metric-input" value="0">
                 <span class="ebay-metric-lbl">Bids/Offers</span>
             </div>
-            <button onclick="refreshEbayMetrics()" title="Attempt automated fetch via Edge Function" style="font-size:11px; padding:6px 10px; background:var(--payout) !important; height: fit-content;">🔄 Sync</button>
+            <div class="ebay-metric-pill">
+                <input type="number" id="metricBestOffer" class="ebay-metric-input" value="0" step="0.01">
+                <span class="ebay-metric-lbl">Best Offer ($)</span>
+            </div>
         </div>
 
         <div class="modal-group">
@@ -1463,7 +1465,7 @@
 
                 if (staleA && !staleB) return -1;
                 if (!staleA && staleB) return 1;
-                return daysB - daysA; // Sort higher days first among stale items
+                return daysB - daysA;
             }
             return 0;
         });
@@ -1778,7 +1780,6 @@
                 }
             }
 
-            // Calculate total overhead to distribute proportionally across active periods
             let totalManualExpenses = 0;
             allExpensesData.forEach(exp => { totalManualExpenses += exp.amount || 0; });
             const overheadPerPeriod = labels.length > 0 ? (totalManualExpenses / labels.length) : 0;
@@ -1815,7 +1816,6 @@
                 }
             });
 
-            // Compute True Business Net for each period (Net Profit minus allocated Overhead)
             labels.forEach(l => {
                 if (aggregated[l]) {
                     aggregated[l].trueNet = Math.max(0, aggregated[l].profit - overheadPerPeriod);
@@ -2035,20 +2035,21 @@
             const watchers = item.ebay_watchers || 0;
             const views = item.ebay_views || 0;
             const offers = item.ebay_offers || 0;
+            const bestOffer = item.ebay_best_offer || 0;
             const currentPrice = item.list_price || 0;
 
             let analysis = "";
             let recPrice = currentPrice;
             let rationale = "";
 
-            if (views > 10 && watchers === 0) {
-                recPrice = currentPrice * 0.88;
-                analysis = `High page impression rate (${views} views) with zero saved intent indicates high interest but price boundary friction.`;
-                rationale = `10-15% reduction to trigger price drop notifications to recent viewers.`;
-            } else if (watchers > 0) {
+            if (watchers > 0) {
                 recPrice = currentPrice * 0.90;
                 analysis = `Active audience present (${watchers} watchers). High likelihood of conversion with a direct price cut.`;
                 rationale = `10% reduction triggers automated push alerts to interested watchers.`;
+            } else if (views > 10) {
+                recPrice = currentPrice * 0.88;
+                analysis = `High page impression rate (${views} views) with zero saved intent indicates high interest but price boundary friction.`;
+                rationale = `12% reduction to trigger price drop notifications to recent viewers.`;
             } else {
                 recPrice = currentPrice * 0.90;
                 analysis = `Low overall engagement (${views} views, ${watchers} watchers). Item is stale in search results.`;
@@ -2060,7 +2061,7 @@
             body += `   • Platform: ${item.platform}\n`;
             body += `   • Current List Price: $${currentPrice.toFixed(2)} | Cost: $${(item.item_cost || 0).toFixed(2)}\n`;
             body += `   • Days Since Last Drop: ${dropDays} days (Last Change: ${dropDate})\n`;
-            body += `   • Engagement Metrics: ${views} Views | ${watchers} Watchers | ${offers} Offers/Bids\n`;
+            body += `   • Engagement Metrics: ${views} Views | ${watchers} Watchers | ${offers} Offers | Best Offer: $${bestOffer.toFixed(2)}\n`;
             body += `   • Activity Analysis: ${analysis}\n`;
             body += `   • Suggested Price: $${recPrice.toFixed(2)} (-${(((currentPrice - recPrice) / currentPrice) * 100).toFixed(1)}%)\n`;
             body += `     --> Rationale: ${rationale}\n\n`;
@@ -2111,7 +2112,6 @@
         
         html5QrCode.start({ facingMode: "environment" }, config, 
             (decodedText) => {
-                // Success
                 document.getElementById('analysisQuery').value = decodedText;
                 stopBarcodeScanner();
                 calculateValuationRange();
@@ -2159,7 +2159,6 @@
                 updateLensLink();
             }
             
-            // Automatically trigger vision identification upon upload
             generateAiDetails();
         };
         reader.readAsDataURL(file);
@@ -2334,6 +2333,7 @@ Return concise HTML bullet points covering:
         const watchers = parseInt(document.getElementById('metricWatchers').value) || 0;
         const views = parseInt(document.getElementById('metricViews').value) || 0;
         const offers = parseInt(document.getElementById('metricOffers').value) || 0;
+        const bestOffer = parseFloat(document.getElementById('metricBestOffer').value) || 0;
 
         const dateListedStr = document.getElementById('editDateListed').value;
         const dateReducedStr = document.getElementById('editDatePriceReduced').value;
@@ -2345,21 +2345,27 @@ Return concise HTML bullet points covering:
         let recDropPct = 0.10;
         let reasoning = "";
 
-        if (watchers > 0) {
+        if (bestOffer > 0) {
+            suggestedPrice = bestOffer;
+            reasoning = `High priority: Match existing <strong>Best Offer of $${bestOffer.toFixed(2)}</strong> to secure an immediate sale.`;
+        } else if (watchers > 0) {
             recDropPct = 0.10;
             reasoning = `There are <strong>${watchers} active watchers</strong>. A 10% reduction triggers automated push alerts to interested buyer accounts.`;
+            suggestedPrice = listPrice * (1 - recDropPct);
         } else if (views > 10) {
             recDropPct = 0.12;
             reasoning = `The listing has accumulated <strong>${views} views</strong> with 0 watchers, signaling high impression interest but price friction. A 12% drop encourages buyer conversion.`;
+            suggestedPrice = listPrice * (1 - recDropPct);
         } else if (daysSinceDrop >= 14) {
             recDropPct = 0.15;
             reasoning = `No price adjustment in <strong>${daysSinceDrop} days</strong> and low traffic (${views} views). A 15% reduction helps re-index search placement.`;
+            suggestedPrice = listPrice * (1 - recDropPct);
         } else {
             recDropPct = 0.10;
             reasoning = `Standard price adjustment for exposure management (${totalDays} total days active).`;
+            suggestedPrice = listPrice * (1 - recDropPct);
         }
 
-        let suggestedPrice = listPrice * (1 - recDropPct);
         if (suggestedPrice < itemCost) {
             suggestedPrice = itemCost;
             reasoning += ` <em>(Adjusted to cost baseline of $${itemCost.toFixed(2)} to protect margin).</em>`;
@@ -2372,9 +2378,9 @@ Return concise HTML bullet points covering:
 
         body.innerHTML = `
             • <strong>Exposure Time:</strong> ${totalDays} total days active (${daysSinceDrop} days since last reduction)<br>
-            • <strong>Engagement Data:</strong> ${views} Views | ${watchers} Watchers | ${offers} Offers/Bids<br>
+            • <strong>Engagement Data:</strong> ${views} Views | ${watchers} Watchers | ${offers} Offers | Best Offer: $${bestOffer.toFixed(2)}<br>
             • <strong>Current Margin:</strong> $${(listPrice - itemCost).toFixed(2)} ($${itemCost.toFixed(2)} cost → $${listPrice.toFixed(2)} list)<br>
-            • <strong>Suggested Price:</strong> <span style="color:var(--profit); font-weight:bold; font-size:14px;">$${suggestedPrice.toFixed(2)}</span> (-${(recDropPct * 100).toFixed(0)}%)<br>
+            • <strong>Suggested Price:</strong> <span style="color:var(--profit); font-weight:bold; font-size:14px;">$${suggestedPrice.toFixed(2)}</span><br>
             • <strong>Strategy Rationale:</strong> ${reasoning}
         `;
 
@@ -2588,6 +2594,7 @@ Return concise HTML bullet points covering:
         document.getElementById('metricWatchers').value = item.ebay_watchers || 0;
         document.getElementById('metricViews').value = item.ebay_views || 0;
         document.getElementById('metricOffers').value = item.ebay_offers || 0;
+        document.getElementById('metricBestOffer').value = item.ebay_best_offer || 0;
 
         document.getElementById('modalPriceAnalysisCard').style.display = 'none';
         currentModalSuggestedPrice = null;
@@ -2603,7 +2610,8 @@ Return concise HTML bullet points covering:
             ebay_url: savedUrl,
             ebay_watchers: item.ebay_watchers || 0,
             ebay_views: item.ebay_views || 0,
-            ebay_offers: item.ebay_offers || 0
+            ebay_offers: item.ebay_offers || 0,
+            ebay_best_offer: item.ebay_best_offer || 0
         });
         
         document.getElementById('editDateListed').value = item.date_listed || '';
@@ -2691,6 +2699,7 @@ Return concise HTML bullet points covering:
         const ebayWatchers = parseInt(document.getElementById('metricWatchers').value) || 0;
         const ebayViews = parseInt(document.getElementById('metricViews').value) || 0;
         const ebayOffers = parseInt(document.getElementById('metricOffers').value) || 0;
+        const ebayBestOffer = parseFloat(document.getElementById('metricBestOffer').value) || 0;
 
         if (!itemName || !dateListed) {
             alert('Item Name and Date Listed are required.');
@@ -2711,6 +2720,7 @@ Return concise HTML bullet points covering:
         if (originalState.ebay_watchers !== undefined && originalState.ebay_watchers !== ebayWatchers) changes.push(`Watchers: ${originalState.ebay_watchers} → ${ebayWatchers}`);
         if (originalState.ebay_views !== undefined && originalState.ebay_views !== ebayViews) changes.push(`Views: ${originalState.ebay_views} → ${ebayViews}`);
         if (originalState.ebay_offers !== undefined && originalState.ebay_offers !== ebayOffers) changes.push(`Offers/Bids: ${originalState.ebay_offers} → ${ebayOffers}`);
+        if (originalState.ebay_best_offer !== undefined && originalState.ebay_best_offer !== ebayBestOffer) changes.push(`Best Offer: $${originalState.ebay_best_offer.toFixed(2)} → $${ebayBestOffer.toFixed(2)}`);
 
         const targetMargin = listPrice - cost;
         const netProfit = (status === 'Sold' || status === 'Pending') ? totalPayout - cost : 0;
@@ -2731,7 +2741,8 @@ Return concise HTML bullet points covering:
             ebay_url: ebayUrl,
             ebay_watchers: ebayWatchers,
             ebay_views: ebayViews,
-            ebay_offers: ebayOffers
+            ebay_offers: ebayOffers,
+            ebay_best_offer: ebayBestOffer
         };
 
         if (listPrice < oldPrice) {
@@ -2773,6 +2784,7 @@ Return concise HTML bullet points covering:
             delete updatePayload.ebay_watchers;
             delete updatePayload.ebay_views;
             delete updatePayload.ebay_offers;
+            delete updatePayload.ebay_best_offer;
             
             const fallback = await supabaseClient
                 .from('curator_listings')
