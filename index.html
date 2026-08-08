@@ -2448,7 +2448,13 @@ Return concise HTML bullet points covering:
     async function saveEditModal() {
         const id = document.getElementById('editItemId').value;
         const oldPrice = parseFloat(document.getElementById('editOldPrice').value) || 0;
-        const originalState = JSON.parse(document.getElementById('editOriginalItemState').value || '{}');
+        
+        let originalState = {};
+        try {
+            originalState = JSON.parse(document.getElementById('editOriginalItemState').value || '{}');
+        } catch (e) {
+            console.warn('Could not parse original state:', e);
+        }
 
         const itemName = document.getElementById('editItemName').value.trim();
         const platform = document.getElementById('editPlatform').value;
@@ -2475,21 +2481,20 @@ Return concise HTML bullet points covering:
         }
 
         let changes = [];
-        if (originalState.item_name !== itemName) changes.push(`Name changed: "${originalState.item_name}" → "${itemName}"`);
-        if (originalState.platform !== platform) changes.push(`Platform: ${originalState.platform} → ${platform}`);
-        if (originalState.status !== status) changes.push(`Status: ${originalState.status} → ${status}`);
-        if (originalState.list_price !== listPrice) changes.push(`List Price: $${originalState.list_price.toFixed(2)} → $${listPrice.toFixed(2)}`);
-        if (originalState.item_cost !== cost) changes.push(`Cost: $${originalState.item_cost.toFixed(2)} → $${cost.toFixed(2)}`);
-        if (originalState.ebay_url !== ebayUrl) changes.push(ebayUrl ? 'eBay link added/updated' : 'eBay link removed');
-        if (originalState.ebay_watchers !== ebayWatchers) changes.push(`Watchers: ${originalState.ebay_watchers} → ${ebayWatchers}`);
-        if (originalState.ebay_views !== ebayViews) changes.push(`Views: ${originalState.ebay_views} → ${ebayViews}`);
-        if (originalState.ebay_offers !== ebayOffers) changes.push(`Offers/Bids: ${originalState.ebay_offers} → ${ebayOffers}`);
+        if (originalState.item_name && originalState.item_name !== itemName) changes.push(`Name changed: "${originalState.item_name}" → "${itemName}"`);
+        if (originalState.platform && originalState.platform !== platform) changes.push(`Platform: ${originalState.platform} → ${platform}`);
+        if (originalState.status && originalState.status !== status) changes.push(`Status: ${originalState.status} → ${status}`);
+        if (originalState.list_price !== undefined && originalState.list_price !== listPrice) changes.push(`List Price: $${originalState.list_price.toFixed(2)} → $${listPrice.toFixed(2)}`);
+        if (originalState.item_cost !== undefined && originalState.item_cost !== cost) changes.push(`Cost: $${originalState.item_cost.toFixed(2)} → $${cost.toFixed(2)}`);
+        if (originalState.ebay_url !== undefined && originalState.ebay_url !== ebayUrl) changes.push(ebayUrl ? 'eBay link added/updated' : 'eBay link removed');
+        if (originalState.ebay_watchers !== undefined && originalState.ebay_watchers !== ebayWatchers) changes.push(`Watchers: ${originalState.ebay_watchers} → ${ebayWatchers}`);
+        if (originalState.ebay_views !== undefined && originalState.ebay_views !== ebayViews) changes.push(`Views: ${originalState.ebay_views} → ${ebayViews}`);
+        if (originalState.ebay_offers !== undefined && originalState.ebay_offers !== ebayOffers) changes.push(`Offers/Bids: ${originalState.ebay_offers} → ${ebayOffers}`);
 
         const targetMargin = listPrice - cost;
         const netProfit = status === 'Sold' ? totalPayout - cost : 0;
         const dropTimestamp = customDropDate ? new Date(customDropDate).toISOString() : new Date().toISOString();
 
-        // 1. Core Update Payload (Guaranteed to work even if extra columns aren't on Supabase)
         const updatePayload = {
             item_name: itemName,
             platform: platform,
@@ -2500,33 +2505,39 @@ Return concise HTML bullet points covering:
             total_payout: status === 'Sold' ? totalPayout : 0,
             net_profit: netProfit,
             target_margin: targetMargin,
-            date_listed: dateListed
+            date_listed: dateListed,
+            ebay_url: ebayUrl,
+            ebay_watchers: ebayWatchers,
+            ebay_views: ebayViews,
+            ebay_offers: ebayOffers
         };
-
-        // Attempt to include extended columns if supported
-        updatePayload.ebay_url = ebayUrl;
-        updatePayload.ebay_watchers = ebayWatchers;
-        updatePayload.ebay_views = ebayViews;
-        updatePayload.ebay_offers = ebayOffers;
 
         if (listPrice < oldPrice) {
             updatePayload.last_price_drop = dropTimestamp;
-            await supabaseClient.from('curator_price_drops').insert([{
-                listing_id: id,
-                previous_price: oldPrice,
-                new_price: listPrice,
-                date_dropped: dropTimestamp
-            }]).catch(() => {});
+            try {
+                await supabaseClient.from('curator_price_drops').insert([{
+                    listing_id: id,
+                    previous_price: oldPrice,
+                    new_price: listPrice,
+                    date_dropped: dropTimestamp
+                }]);
+            } catch (e) {
+                console.warn('Could not save price drop log:', e);
+            }
         }
 
         if (changes.length > 0) {
             const nowIso = new Date().toISOString();
             for (let change of changes) {
-                await supabaseClient.from('curator_audit_logs').insert([{
-                    listing_id: id,
-                    change_description: change,
-                    logged_at: nowIso
-                }]).catch(() => {});
+                try {
+                    await supabaseClient.from('curator_audit_logs').insert([{
+                        listing_id: id,
+                        change_description: change,
+                        logged_at: nowIso
+                    }]);
+                } catch (e) {
+                    console.warn('Could not save audit log:', e);
+                }
             }
         }
 
@@ -2535,9 +2546,8 @@ Return concise HTML bullet points covering:
             .update(updatePayload)
             .eq('id', id);
 
-        // Safe Fallback: strip extended columns if database table schema hasn't been migrated yet
         if (error) {
-            console.warn('Extended columns not found in database; falling back to core save.', error);
+            console.warn('Database error on update, attempting core payload fallback:', error);
             delete updatePayload.ebay_url;
             delete updatePayload.ebay_watchers;
             delete updatePayload.ebay_views;
@@ -2547,6 +2557,7 @@ Return concise HTML bullet points covering:
                 .from('curator_listings')
                 .update(updatePayload)
                 .eq('id', id);
+                
             error = fallback.error;
         }
 
