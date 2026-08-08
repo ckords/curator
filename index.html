@@ -1265,6 +1265,30 @@
 
     let calculatedCompPrices = { low: 0, mid: 0, high: 0, rec: 0 };
 
+    // Helper: Formats ISO timestamp or Date object into Central Time YYYY-MM-DD and 24-Hour Military HH:mm
+    function formatCentralTimestamp(dateInput) {
+        const d = dateInput ? new Date(dateInput) : new Date();
+        const optionsDate = { timeZone: 'America/Chicago', year: 'numeric', month: '2-digit', day: '2-digit' };
+        const optionsTime = { timeZone: 'America/Chicago', hour: '2-digit', minute: '2-digit', hour12: false };
+
+        const parts = new Intl.DateTimeFormat('en-US', optionsDate).formatToParts(d);
+        let year, month, day;
+        for (const p of parts) {
+            if (p.type === 'year') year = p.value;
+            if (p.type === 'month') month = p.value;
+            if (p.type === 'day') day = p.value;
+        }
+
+        const dateStr = `${year}-${month}-${day}`;
+        const timeStr = new Intl.DateTimeFormat('en-US', optionsTime).format(d);
+
+        return {
+            dateStr: dateStr,
+            timeStr: timeStr,
+            fullIsoCentral: `${dateStr}T${timeStr}:00`
+        };
+    }
+
     // Register ChartDataLabels plugin
     if (typeof ChartDataLabels !== 'undefined') {
         Chart.register(ChartDataLabels);
@@ -2275,7 +2299,7 @@ Return concise HTML bullet points covering:
         }
 
         const margin = price - cost;
-        const nowIso = new Date().toISOString();
+        const centralTime = formatCentralTimestamp();
 
         const payload = {
             item_name: name,
@@ -2283,7 +2307,7 @@ Return concise HTML bullet points covering:
             item_cost: cost,
             list_price: price,
             date_listed: dateStr,
-            last_price_drop: nowIso,
+            last_price_drop: centralTime.fullIsoCentral,
             target_margin: margin,
             calculated_baseline: price,
             status: 'Active'
@@ -2415,10 +2439,10 @@ Return concise HTML bullet points covering:
                 oldDrops.forEach(log => {
                     const li = document.createElement('li');
                     li.className = 'history-item';
-                    const dateStr = log.date_dropped ? log.date_dropped.substring(0, 10) : '';
+                    const central = formatCentralTimestamp(log.date_dropped);
                     const diff = (log.previous_price - log.new_price).toFixed(2);
                     li.innerHTML = `
-                        <span><strong>${dateStr}</strong>: Price $${log.previous_price.toFixed(2)} → $${log.new_price.toFixed(2)}</span>
+                        <span><strong>${central.dateStr}</strong>: Price $${log.previous_price.toFixed(2)} → $${log.new_price.toFixed(2)}</span>
                         <span style="color:var(--drop); font-weight:bold;">(-$${diff})</span>
                     `;
                     historyList.appendChild(li);
@@ -2429,10 +2453,10 @@ Return concise HTML bullet points covering:
             data.forEach(log => {
                 const li = document.createElement('li');
                 li.className = 'history-item';
-                const dateStr = log.logged_at ? log.logged_at.substring(0, 10) : '';
+                const central = formatCentralTimestamp(log.logged_at);
                 li.innerHTML = `
-                    <span><strong>${dateStr}</strong>: ${log.change_description}</span>
-                    <span style="color:var(--muted-text); font-size:10px;">${log.logged_at ? log.logged_at.substring(11, 16) : ''}</span>
+                    <span><strong>${central.dateStr}</strong>: ${log.change_description}</span>
+                    <span style="color:var(--muted-text); font-size:11px; font-weight:bold;">${central.timeStr}</span>
                 `;
                 historyList.appendChild(li);
             });
@@ -2493,7 +2517,8 @@ Return concise HTML bullet points covering:
 
         const targetMargin = listPrice - cost;
         const netProfit = status === 'Sold' ? totalPayout - cost : 0;
-        const dropTimestamp = customDropDate ? new Date(customDropDate).toISOString() : new Date().toISOString();
+        const centralTime = formatCentralTimestamp();
+        const dropTimestamp = customDropDate ? `${customDropDate}T${centralTime.timeStr}:00` : centralTime.fullIsoCentral;
 
         const updatePayload = {
             item_name: itemName,
@@ -2527,13 +2552,12 @@ Return concise HTML bullet points covering:
         }
 
         if (changes.length > 0) {
-            const nowIso = new Date().toISOString();
             for (let change of changes) {
                 try {
                     await supabaseClient.from('curator_audit_logs').insert([{
                         listing_id: id,
                         change_description: change,
-                        logged_at: nowIso
+                        logged_at: centralTime.fullIsoCentral
                     }]);
                 } catch (e) {
                     console.warn('Could not save audit log:', e);
